@@ -1306,6 +1306,32 @@ function JobsScreen() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
 
+  // けいさんきを開くときはブラウザの履歴に1つ積む。
+  // これでスマホの「戻る」ボタン（▽）を押したときに、アプリを閉じるのではなく
+  // けいさんきを閉じて、おしごとちょうの画面に戻れるようになる。
+  const openCalculator = useCallback(() => {
+    window.history.pushState({ oshigotochoCalculator: true }, "");
+    setCalculatorOpen(true);
+  }, []);
+
+  const closeCalculator = useCallback(() => {
+    setCalculatorOpen(false);
+    // 「もどる」ボタンで明示的に閉じた場合は、積んだ履歴をひとつ戻して整合性をとる。
+    // すでに戻るボタン（popstate）経由で閉じている場合は何もしない。
+    if (window.history.state && window.history.state.oshigotochoCalculator) {
+      window.history.back();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      // スマホの戻るボタン（▽）が押された時、けいさんきが開いていれば閉じるだけにする
+      setCalculatorOpen(false);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // お仕事は削除しない限り常にリストに残る。今日「ありがとう！」済みのものは下のグループへ。
   const activeJobs = useMemo(
     () => jobs.filter(j => j.status !== JOB_STATUS.DONE && j.status !== JOB_STATUS.ARCHIVED),
@@ -1319,7 +1345,7 @@ function JobsScreen() {
   return (
     <div className="tab-page" style={jobsScreenStyles.screen}>
       <AppHeader />
-      <BalanceCard onOpenCalculator={() => setCalculatorOpen(true)} />
+      <BalanceCard onOpenCalculator={openCalculator} />
 
       <div style={jobsScreenStyles.scrollArea}>
         <div style={jobsScreenStyles.listHeader}>
@@ -1367,7 +1393,7 @@ function JobsScreen() {
 
       {calculatorOpen && (
         <div style={jobsScreenStyles.calculatorOverlay}>
-          <CalculatorTool onBack={() => setCalculatorOpen(false)} />
+          <CalculatorTool onBack={closeCalculator} />
         </div>
       )}
     </div>
