@@ -139,7 +139,7 @@
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tiny-segmenter@0.2.0/tiny_segmenter.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tiny-segmenter@0.2.0/dist/tiny-segmenter-0.2.0.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -744,12 +744,12 @@ function getSegmenter() {
 }
 
 // 入力テキストをひらがなに変換する（メインの関数）
-// TinySegmenterが読み込めない場合は、文字ごとの簡易処理にフォールバックする。
+// TinySegmenterが読み込めない場合は、文章全体に辞書の最長一致だけを適用するフォールバックを使う。
 function convertToHiragana(text) {
   if (!text) return "";
   const segmenter = getSegmenter();
   if (!segmenter) {
-    // TinySegmenterが使えない場合のフォールバック：辞書の最長一致のみで変換
+    // TinySegmenterが使えない場合でも、辞書に載っている言葉だけは変換できるようにする
     return wordToHiragana(text);
   }
   const words = segmenter.segment(text);
