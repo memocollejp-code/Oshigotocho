@@ -1640,6 +1640,7 @@ function DiaryWriteScreen({ streak }) {
   const [memo, setMemo] = useState("");
   const [hiraganaPreview, setHiraganaPreview] = useState("");
   const [hiraganaFailed, setHiraganaFailed] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [selectedStamp, setSelectedStamp] = useState(null);
   const [poppingStamp, setPoppingStamp] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -1658,8 +1659,10 @@ function DiaryWriteScreen({ streak }) {
     if (!memo.trim()) {
       setHiraganaPreview("");
       setHiraganaFailed(false);
+      setIsConverting(false);
       return;
     }
+    setIsConverting(true);
     const timer = setTimeout(() => {
       try {
         const result = convertToHiragana(memo);
@@ -1670,6 +1673,7 @@ function DiaryWriteScreen({ streak }) {
         setHiraganaPreview(memo);
         setHiraganaFailed(true);
       }
+      setIsConverting(false);
     }, 150);
     return () => clearTimeout(timer);
   }, [memo]);
@@ -1752,7 +1756,11 @@ function DiaryWriteScreen({ streak }) {
           <div style={diaryStyles.previewBox}>
             <div style={diaryStyles.previewOriginal}>{memo}</div>
             <div style={diaryStyles.previewHiragana}>
-              <HiraganaHighlightText text={hiraganaPreview} />
+              {isConverting ? (
+                <span style={diaryStyles.previewLoading}>…</span>
+              ) : (
+                <HiraganaHighlightText text={hiraganaPreview} />
+              )}
             </div>
             <div style={diaryStyles.previewNote}>
               ※ よく つかう ことばだけ ひらがなに しているよ。むずかしい かんじは そのまま のこることが あるよ
