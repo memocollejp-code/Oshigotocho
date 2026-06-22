@@ -1,0 +1,2849 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>おしごとちょう</title>
+
+<!-- PWA対応：ホーム画面に追加してアプリのように使えるようにする -->
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="favicon.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="theme-color" content="#FFFBF0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="おしごとちょう" />
+
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #FFFBF0; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  #root { height: 100vh; overflow: hidden; }
+  button { font-family: inherit; }
+
+  /* 紙の質感 */
+  body {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(180, 150, 100, 0.035) 0%, transparent 45%),
+      radial-gradient(circle at 80% 75%, rgba(180, 150, 100, 0.03) 0%, transparent 50%);
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55  0 0 0 0 0.45  0 0 0 0 0.32  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  @keyframes bounce-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.18) rotate(-3deg); }
+    60%  { transform: scale(0.93) rotate(2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .anim-bounce { animation: bounce-pop 0.45s cubic-bezier(.34,1.56,.64,1); }
+
+  @keyframes confetti-fall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+  }
+  .confetti-piece {
+    position: absolute;
+    top: 0;
+    font-size: 18px;
+    animation: confetti-fall 0.9s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes amount-pulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  .anim-amount-pulse { animation: amount-pulse 0.5s ease; }
+
+  @keyframes tab-slide-in {
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .tab-page { animation: tab-slide-in 0.28s ease-out; height: 100%; }
+
+  /* ストリーク達成の豪華演出 */
+  @keyframes streak-modal-pop {
+    0%   { opacity: 0; transform: scale(0.6) rotate(-8deg); }
+    60%  { opacity: 1; transform: scale(1.08) rotate(3deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+  .anim-streak-modal { animation: streak-modal-pop 0.5s cubic-bezier(.34,1.56,.64,1); }
+
+  @keyframes streak-confetti-fall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(360px) rotate(540deg); opacity: 0; }
+  }
+  .streak-confetti-piece {
+    position: absolute;
+    top: 0;
+    font-size: 24px;
+    animation: streak-confetti-fall 1.6s ease-in forwards;
+    pointer-events: none;
+  }
+
+  @keyframes streak-glow {
+    0%, 100% { box-shadow: 0 0 0px rgba(217,164,65,0); }
+    50% { box-shadow: 0 0 24px rgba(217,164,65,0.6); }
+  }
+  .anim-streak-glow { animation: streak-glow 1.2s ease-in-out infinite; }
+
+  /* ===== けいさんき（計算機ツール）専用のアニメーション ===== */
+  @keyframes key-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(0.88); }
+    70%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .anim-key-pop { animation: key-pop 0.22s ease; }
+
+  @keyframes coin-pop-in {
+    0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+    60%  { transform: scale(1.25) rotate(8deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  .anim-coin-in { animation: coin-pop-in 0.4s cubic-bezier(.34,1.56,.64,1); }
+
+  @keyframes sparkle-burst {
+    0%   { transform: scale(0.3) rotate(0deg); opacity: 1; }
+    100% { transform: scale(1.6) rotate(180deg); opacity: 0; }
+  }
+  .sparkle-piece {
+    position: absolute;
+    font-size: 22px;
+    animation: sparkle-burst 0.7s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes calc-shake-x {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .anim-calc-shake { animation: calc-shake-x 0.3s ease; }
+
+  /* けいさんきモーダルのスライドイン演出 */
+  @keyframes calc-modal-slide-up {
+    0%   { transform: translateY(100%); }
+    100% { transform: translateY(0); }
+  }
+  .anim-calc-modal-in { animation: calc-modal-slide-up 0.28s ease-out; }
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { createContext, useContext, useReducer, useEffect, useRef, useState, useMemo, useCallback } = React;
+
+// ==========================================================
+// 1. 定数
+// ==========================================================
+const STORAGE_KEY = "oshigotocho_data_v2";
+const DEBOUNCE_MS = 300;
+
+const TABS = {
+  JOBS: "jobs",
+  DIARY: "diary",
+  SETTINGS: "settings",
+};
+
+const JOB_STATUS = {
+  PENDING: "pending",   // まだ
+  GOTCHA: "gotcha",      // がんばった！済み
+  DONE: "done",          // ありがとう！済み（精算済み・履歴へ、毎日タイプは翌日リセット）
+  ARCHIVED: "archived",  // きょうだけタイプが完了し、もう復活しない状態
+};
+
+const REPEAT_TYPE = {
+  DAILY: "daily", // まいにち（翌日0時に自動リセット）
+  ONCE: "once",   // きょうだけ（完了したら復活しない）
+};
+
+// ==========================================================
+// 2. 初期データ
+// ==========================================================
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+}
+
+const initialState = {
+  tab: TABS.JOBS,
+  darkMode: false,
+  todayKey: todayKey(),
+  jobs: [
+    // { id, title, amount, status, gotchaAt, thanksAt } ※status/gotchaAt/thanksAtは「きょう」の進行状況
+  ],
+  completedJobs: [
+    // { id, jobId, title, amount, date, thanksAt } ※「ありがとう！」を押した時点の実績履歴（過去分は記録されない）
+  ],
+  balance: 0, // 精算済み・未受領のおこづかい合計
+  diaryEntries: [], // { id, date, memo, hiragana, stamp }
+  streakMilestonesShown: [], // 既に演出を見せたマイルストーン日数の記録（例：[3, 7]）
+  settings: {
+    hourlyRate: 1000,
+    monthlyGoalAmount: 1000, // 毎月の目標おこづかい額
+    payoutDay: 25, // おこづかいが付与される日（1〜31、31は月末扱い）
+  },
+};
+
+// ==========================================================
+// 2b. 日付が変わっていたら、全ジョブの「きょうの進行」をリセットする
+// ==========================================================
+function rolloverIfNeeded(state) {
+  const key = todayKey();
+  if (state.todayKey === key) return state;
+  return {
+    ...state,
+    todayKey: key,
+    jobs: state.jobs.map(j => {
+      // 「きょうだけ」タイプが完了済みなら、二度と復活させずARCHIVEDに固定する
+      if (j.repeat === REPEAT_TYPE.ONCE && j.status === JOB_STATUS.DONE) {
+        return { ...j, status: JOB_STATUS.ARCHIVED };
+      }
+      if (j.status === JOB_STATUS.ARCHIVED) {
+        return j; // 既にARCHIVEDのものはそのまま
+      }
+      // 「まいにち」タイプ、またはまだ完了していない「きょうだけ」タイプは通常通りリセット
+      return { ...j, status: JOB_STATUS.PENDING, gotchaAt: null, thanksAt: null };
+    }),
+  };
+}
+
+// ==========================================================
+// 3. Reducer
+// ==========================================================
+function reducer(state, action) {
+  switch (action.type) {
+    case "SET_TAB":
+      return { ...state, tab: action.payload };
+
+    case "ADD_JOB":
+      return { ...state, jobs: [action.payload, ...state.jobs] };
+
+    case "DELETE_JOB":
+      return { ...state, jobs: state.jobs.filter(j => j.id !== action.payload) };
+
+    case "MARK_GOTCHA":
+      return {
+        ...state,
+        jobs: state.jobs.map(j =>
+          j.id === action.payload
+            ? { ...j, status: JOB_STATUS.GOTCHA, gotchaAt: new Date().toISOString() }
+            : j
+        ),
+      };
+
+    case "MARK_THANKS": {
+      const thanksAt = new Date().toISOString();
+      const historyRecord = {
+        id: `${action.payload.id}_${thanksAt}`,
+        jobId: action.payload.id,
+        title: action.payload.title,
+        amount: action.payload.amount,
+        date: thanksAt.split("T")[0],
+        thanksAt,
+      };
+      return {
+        ...state,
+        jobs: state.jobs.map(j => {
+          if (j.id !== action.payload.id) return j;
+          const nextStatus = j.repeat === REPEAT_TYPE.ONCE ? JOB_STATUS.ARCHIVED : JOB_STATUS.DONE;
+          return { ...j, status: nextStatus, thanksAt };
+        }),
+        completedJobs: [historyRecord, ...state.completedJobs],
+        balance: state.balance + action.payload.amount,
+      };
+    }
+
+    case "CLEAR_BALANCE":
+      return { ...state, balance: 0 };
+
+    case "PAY_PARTIAL": {
+      const amount = Math.max(0, Math.min(action.payload, state.balance));
+      return { ...state, balance: state.balance - amount };
+    }
+
+    case "ADD_DIARY_ENTRY":
+      return { ...state, diaryEntries: [action.payload, ...state.diaryEntries] };
+
+    case "DELETE_DIARY_ENTRY":
+      return { ...state, diaryEntries: state.diaryEntries.filter(d => d.id !== action.payload) };
+
+    case "MARK_STREAK_SHOWN":
+      return { ...state, streakMilestonesShown: [...state.streakMilestonesShown, action.payload] };
+
+    case "UPDATE_SETTINGS":
+      return { ...state, settings: { ...state.settings, ...action.payload } };
+
+    case "TOGGLE_DARK_MODE":
+      return { ...state, darkMode: !state.darkMode };
+
+    case "IMPORT_DATA":
+      return {
+        ...state,
+        ...action.payload,
+        settings: { ...state.settings, ...(action.payload.settings || {}) },
+        tab: state.tab,
+      };
+
+    case "RESET_ALL":
+      return { ...initialState, todayKey: todayKey(), tab: TABS.JOBS };
+
+    case "LOAD_FROM_STORAGE":
+      return rolloverIfNeeded({
+        ...state,
+        ...action.payload,
+        settings: { ...state.settings, ...(action.payload.settings || {}) },
+        tab: TABS.JOBS,
+      });
+
+    case "CHECK_ROLLOVER":
+      return rolloverIfNeeded(state);
+
+    default:
+      return state;
+  }
+}
+
+// ==========================================================
+// 4. LocalStorage
+// ==========================================================
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.error("読み込みエラー:", e);
+    return null;
+  }
+}
+function saveToStorage(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("保存エラー:", e);
+  }
+}
+
+// ==========================================================
+// 5. Context
+// ==========================================================
+const AppStateContext = createContext(null);
+const AppDispatchContext = createContext(null);
+const ToastContext = createContext(null);
+
+function useAppState() { return useContext(AppStateContext); }
+function useAppDispatch() { return useContext(AppDispatchContext); }
+function useToast() { return useContext(ToastContext); }
+
+function useTabs() {
+  const { tab } = useAppState();
+  const dispatch = useAppDispatch();
+  const setTab = useCallback((t) => dispatch({ type: "SET_TAB", payload: t }), [dispatch]);
+  return { tab, setTab };
+}
+
+function useJobs() {
+  const { jobs, balance, completedJobs } = useAppState();
+  const dispatch = useAppDispatch();
+  const toast = useToast();
+
+  const addJob = useCallback((job) => {
+    dispatch({
+      type: "ADD_JOB",
+      payload: { id: Date.now().toString(), status: JOB_STATUS.PENDING, gotchaAt: null, thanksAt: null, repeat: REPEAT_TYPE.DAILY, ...job },
+    });
+    toast.show("おしごとを ついかしたよ！", "success");
+  }, [dispatch, toast]);
+
+  const deleteJob = useCallback((id) => {
+    dispatch({ type: "DELETE_JOB", payload: id });
+    toast.show("けしたよ", "info");
+  }, [dispatch, toast]);
+
+  const markGotcha = useCallback((id) => {
+    dispatch({ type: "MARK_GOTCHA", payload: id });
+    toast.show("がんばったね！えらい！", "success");
+  }, [dispatch, toast]);
+
+  const markThanks = useCallback((id, amount, title) => {
+    dispatch({ type: "MARK_THANKS", payload: { id, amount, title } });
+    toast.show("おこづかいが たまったよ！", "success");
+  }, [dispatch, toast]);
+
+  const clearBalance = useCallback(() => {
+    dispatch({ type: "CLEAR_BALANCE" });
+    toast.show("ぜんぶ わたしたよ！", "success");
+  }, [dispatch, toast]);
+
+  const payPartial = useCallback((amount) => {
+    dispatch({ type: "PAY_PARTIAL", payload: amount });
+    toast.show(`¥${amount.toLocaleString()} わたしたよ！`, "success");
+  }, [dispatch, toast]);
+
+  return { jobs, balance, completedJobs, addJob, deleteJob, markGotcha, markThanks, clearBalance, payPartial };
+}
+
+function useDiary() {
+  const { diaryEntries, streakMilestonesShown } = useAppState();
+  const dispatch = useAppDispatch();
+  const toast = useToast();
+
+  const addEntry = useCallback((entry) => {
+    dispatch({ type: "ADD_DIARY_ENTRY", payload: { id: Date.now().toString(), ...entry } });
+    toast.show("きろくしたよ！", "success");
+  }, [dispatch, toast]);
+
+  const deleteEntry = useCallback((id) => {
+    dispatch({ type: "DELETE_DIARY_ENTRY", payload: id });
+    toast.show("けしたよ", "info");
+  }, [dispatch, toast]);
+
+  const markStreakShown = useCallback((days) => {
+    dispatch({ type: "MARK_STREAK_SHOWN", payload: days });
+  }, [dispatch]);
+
+  const streak = useMemo(() => calcStreak(diaryEntries), [diaryEntries]);
+
+  return { diaryEntries, addEntry, deleteEntry, streak, streakMilestonesShown, markStreakShown };
+}
+
+function useSettings() {
+  const { settings, darkMode } = useAppState();
+  const dispatch = useAppDispatch();
+  const toast = useToast();
+
+  const updateSettings = useCallback((payload) => {
+    dispatch({ type: "UPDATE_SETTINGS", payload });
+    toast.show("せっていをほぞんしたよ！", "success");
+  }, [dispatch, toast]);
+
+  const toggleDarkMode = useCallback(() => dispatch({ type: "TOGGLE_DARK_MODE" }), [dispatch]);
+
+  const exportData = useCallback(() => {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const now = new Date();
+    const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    a.href = url;
+    a.download = `oshigotocho_export_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.show("エクスポートしたよ！", "success");
+  }, [toast]);
+
+  const importData = useCallback((file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target.result);
+        dispatch({ type: "IMPORT_DATA", payload: parsed });
+        toast.show("インポートしたよ！", "success");
+      } catch (err) {
+        console.error(err);
+        toast.show("ファイルがよめなかったよ…", "error");
+      }
+    };
+    reader.onerror = () => toast.show("ファイルがよめなかったよ…", "error");
+    reader.readAsText(file);
+  }, [dispatch, toast]);
+
+  const resetAll = useCallback(() => {
+    dispatch({ type: "RESET_ALL" });
+    toast.show("ぜんぶ きれいにしたよ", "info");
+  }, [dispatch, toast]);
+
+  return { settings, darkMode, updateSettings, toggleDarkMode, exportData, importData, resetAll };
+}
+
+// ==========================================================
+// 6. Toast
+// ==========================================================
+function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const idRef = useRef(0);
+  const show = useCallback((message, type = "info") => {
+    const id = ++idRef.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2200);
+  }, []);
+  return (
+    <ToastContext.Provider value={{ show }}>
+      {children}
+      <div style={toastContainerStyle}>
+        {toasts.map(t => <div key={t.id} style={toastStyle(t.type)}>{t.message}</div>)}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+const toastContainerStyle = {
+  position: "fixed", bottom: "92px", left: 0, right: 0,
+  display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+  pointerEvents: "none", zIndex: 9999, padding: "0 16px",
+};
+function toastStyle(type) {
+  const colors = { success: "#5b8c5a", info: "#5a7a9c", error: "#c0584f" };
+  return {
+    background: colors[type] || colors.info, color: "#fff", padding: "12px 20px",
+    borderRadius: "18px", fontSize: "15px", fontWeight: 700,
+    boxShadow: "0 4px 12px rgba(0,0,0,0.2)", maxWidth: "90vw", textAlign: "center",
+  };
+}
+
+// ==========================================================
+// 7. ConfirmDialog
+// ==========================================================
+function ConfirmDialog({ open, title, message, confirmLabel = "OK", cancelLabel = "やめる", danger = false, onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div style={dialogStyles.overlay} onClick={onCancel}>
+      <div style={dialogStyles.dialog} onClick={(e) => e.stopPropagation()}>
+        <div style={dialogStyles.title}>{title}</div>
+        {message && <div style={dialogStyles.message}>{message}</div>}
+        <div style={dialogStyles.buttonRow}>
+          <button onClick={onCancel} style={dialogStyles.cancelButton}>{cancelLabel}</button>
+          <button onClick={onConfirm} style={{...dialogStyles.confirmButton, ...(danger ? dialogStyles.confirmButtonDanger : {})}}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+const dialogStyles = {
+  overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(90,69,48,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: "20px" },
+  dialog: { width: "100%", maxWidth: "320px", background: "#FFFEF7", border: "3px solid #EFE1BD", borderRadius: "28px", padding: "24px 22px", boxShadow: "0 12px 32px rgba(90,69,48,0.25)" },
+  title: { fontSize: "19px", fontWeight: 800, color: "#4a3f2c", textAlign: "center", marginBottom: "8px" },
+  message: { fontSize: "14px", color: "#8a7a5e", textAlign: "center", marginBottom: "20px", lineHeight: 1.6 },
+  buttonRow: { display: "flex", gap: "10px" },
+  cancelButton: { flex: 1, minHeight: "52px", border: "2px solid #EFE1BD", borderRadius: "18px", background: "#FFFDF4", color: "#7a5c3e", fontSize: "16px", fontWeight: 700 },
+  confirmButton: { flex: 1, minHeight: "52px", border: "none", borderRadius: "18px", background: "#A8642A", color: "#fff", fontSize: "16px", fontWeight: 800, boxShadow: "0 3px 0 #7a4a1e" },
+  confirmButtonDanger: { background: "#C0584F", boxShadow: "0 3px 0 #8f3f38" },
+};
+
+// ==========================================================
+// 8. AppProvider
+// ==========================================================
+function AppProvider({ children }) {
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const debounceRef = useRef(null);
+  const isFirstLoad = useRef(true);
+
+  useEffect(() => {
+    const saved = loadFromStorage();
+    if (saved) dispatch({ type: "LOAD_FROM_STORAGE", payload: saved });
+  }, []);
+
+  // アプリがバックグラウンドから復帰した時、日付が変わっていたらリセット
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        dispatch({ type: "CHECK_ROLLOVER" });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (isFirstLoad.current) { isFirstLoad.current = false; return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => saveToStorage(state), DEBOUNCE_MS);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [state]);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark-mode", state.darkMode);
+  }, [state.darkMode]);
+
+  return (
+    <AppStateContext.Provider value={state}>
+      <AppDispatchContext.Provider value={dispatch}>
+        <ToastProvider>{children}</ToastProvider>
+      </AppDispatchContext.Provider>
+    </AppStateContext.Provider>
+  );
+}
+
+// ==========================================================
+// 9. 共通：時刻フォーマット
+// ==========================================================
+function formatTime(isoStr) {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+function formatDateShort(isoStr) {
+  if (!isoStr) return "";
+  const d = new Date(isoStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+// ==========================================================
+// 9b. ひらがな変換（kuromoji.js 形態素解析）
+// ==========================================================
+// カタカナ → ひらがな（機械的に完全変換できる部分）
+function katakanaToHiragana(str) {
+  return str.replace(/[\u30a1-\u30f6]/g, (ch) =>
+    String.fromCharCode(ch.charCodeAt(0) - 0x60)
+  );
+}
+
+let kuromojiTokenizer = null;
+let kuromojiLoadingPromise = null;
+
+function loadKuromojiTokenizer() {
+  if (kuromojiTokenizer) return Promise.resolve(kuromojiTokenizer);
+  if (kuromojiLoadingPromise) return kuromojiLoadingPromise;
+  if (typeof kuromoji === "undefined") return Promise.reject(new Error("kuromoji not loaded"));
+
+  kuromojiLoadingPromise = new Promise((resolve, reject) => {
+    kuromoji
+      .builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" })
+      .build((err, tokenizer) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        kuromojiTokenizer = tokenizer;
+        resolve(tokenizer);
+      });
+  });
+  return kuromojiLoadingPromise;
+}
+
+// 形態素解析の結果から「読み（カタカナ）」を取り出し、ひらがなに変換して連結する
+function tokensToHiragana(tokenizer, text) {
+  const tokens = tokenizer.tokenize(text);
+  return tokens
+    .map((t) => {
+      // reading がある場合（漢字など）はそれを使う。無い場合（記号・絵文字等）は元の表層形を使う。
+      const reading = t.reading && t.reading !== "*" ? t.reading : t.surface_form;
+      return katakanaToHiragana(reading);
+    })
+    .join("");
+}
+
+// ==========================================================
+// 9c. 連続記録（スタンプカード）の計算
+// ==========================================================
+function dateStrToDate(dateStr) {
+  // "YYYY-MM-DD" → ローカルタイムのDateオブジェクト（時刻なし）
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function diffInDays(dateA, dateB) {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((dateA - dateB) / msPerDay);
+}
+
+// diaryEntries（{date}を含む配列）から「直近の連続記録日数」を計算する
+function calcStreak(diaryEntries) {
+  if (!diaryEntries || diaryEntries.length === 0) return 0;
+
+  const uniqueDates = Array.from(new Set(diaryEntries.map((e) => e.date))).sort(
+    (a, b) => (a < b ? 1 : -1) // 降順（新しい日付が先頭）
+  );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let cursor = today;
+
+  for (let i = 0; i < uniqueDates.length; i++) {
+    const entryDate = dateStrToDate(uniqueDates[i]);
+    const diff = diffInDays(cursor, entryDate);
+
+    if (i === 0) {
+      // 最新の記録が「今日」または「きのう」でなければストリークは0（途切れている）
+      if (diff > 1) return 0;
+      streak = 1;
+      cursor = entryDate;
+    } else {
+      const prevDiff = diffInDays(cursor, entryDate);
+      if (prevDiff === 1) {
+        streak += 1;
+        cursor = entryDate;
+      } else if (prevDiff === 0) {
+        // 同日の重複（通常は発生しないが保険）
+        continue;
+      } else {
+        break;
+      }
+    }
+  }
+  return streak;
+}
+
+const STREAK_MILESTONES = [
+  { days: 3, label: "3にち れんぞく！", emoji: "🎉" },
+  { days: 7, label: "1しゅうかん れんぞく！", emoji: "🏆" },
+  { days: 30, label: "1かげつ れんぞく！", emoji: "👑" },
+];
+
+// ==========================================================
+// 10. ヘッダー（共通）
+// ==========================================================
+function AppHeader() {
+  return (
+    <div style={headerStyles.wrap}>
+      <h1 style={headerStyles.logo}>おしごとちょう</h1>
+    </div>
+  );
+}
+const headerStyles = {
+  wrap: {
+    padding: "18px 16px 14px",
+    textAlign: "center",
+    flexShrink: 0,
+    background: "#FFFBF0",
+    borderBottom: "2px dashed #E2D2A8",
+  },
+  logo: {
+    margin: 0,
+    fontSize: "26px",
+    fontWeight: 800,
+    color: "#7a4a1e",
+    letterSpacing: "1px",
+    fontFamily: "'Hiragino Maru Gothic ProN', 'Yu Gothic', 'Klee', 'Comic Sans MS', sans-serif",
+    textShadow: "0 1px 0 #fff",
+  },
+};
+
+// ==========================================================
+// 11. おこづかい表示
+// ==========================================================
+function BalanceCard({ onOpenCalculator }) {
+  const { balance, clearBalance, payPartial } = useJobs();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [partialOpen, setPartialOpen] = useState(false);
+  const [pulse, setPulse] = useState(false);
+  const prevBalance = useRef(balance);
+
+  useEffect(() => {
+    if (balance !== prevBalance.current) {
+      setPulse(true);
+      const t = setTimeout(() => setPulse(false), 500);
+      prevBalance.current = balance;
+      return () => clearTimeout(t);
+    }
+  }, [balance]);
+
+  return (
+    <div style={balanceStyles.wrap}>
+      <button onClick={onOpenCalculator} style={balanceStyles.calcButton} aria-label="けいさんき">
+        🧮
+      </button>
+      <div style={balanceStyles.label}>いまの おこづかい</div>
+      <div className={pulse ? "anim-amount-pulse" : ""} style={balanceStyles.amount}>
+        ¥{balance.toLocaleString()}
+      </div>
+      <div style={balanceStyles.payButtonRow}>
+        <button
+          onClick={() => setPartialOpen(true)}
+          disabled={balance === 0}
+          style={{...balanceStyles.payButtonSecondary, ...(balance === 0 ? balanceStyles.payButtonDisabled : {})}}
+        >
+          💴 いくらか わたした
+        </button>
+        <button
+          onClick={() => setConfirmOpen(true)}
+          disabled={balance === 0}
+          style={{...balanceStyles.payButton, ...(balance === 0 ? balanceStyles.payButtonDisabled : {})}}
+        >
+          💰 ぜんぶ わたした
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="ぜんぶ わたした？"
+        message="おこづかいを 0えんに するよ"
+        confirmLabel="わたした！"
+        cancelLabel="まだ"
+        onConfirm={() => { clearBalance(); setConfirmOpen(false); }}
+        onCancel={() => setConfirmOpen(false)}
+      />
+
+      <PartialPayDialog
+        open={partialOpen}
+        balance={balance}
+        onConfirm={(amount) => { payPartial(amount); setPartialOpen(false); }}
+        onCancel={() => setPartialOpen(false)}
+      />
+    </div>
+  );
+}
+
+// ==========================================================
+// 11b. 一部だけ渡すダイアログ（〇〇円 わたした）
+// ==========================================================
+function PartialPayDialog({ open, balance, onConfirm, onCancel }) {
+  const [amount, setAmount] = useState("");
+  const toast = useToast();
+
+  useEffect(() => {
+    if (open) setAmount("");
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleConfirm = () => {
+    const amt = parseInt(amount, 10) || 0;
+    if (amt <= 0) {
+      toast.show("きんがくを いれてね", "error");
+      return;
+    }
+    if (amt > balance) {
+      toast.show("いまの おこづかいより おおきい きんがくは いれられないよ", "error");
+      return;
+    }
+    onConfirm(amt);
+  };
+
+  return (
+    <div style={dialogStyles.overlay} onClick={onCancel}>
+      <div style={dialogStyles.dialog} onClick={(e) => e.stopPropagation()}>
+        <div style={dialogStyles.title}>いくら わたした？</div>
+        <div style={partialPayStyles.balanceHint}>いまの おこづかい：¥{balance.toLocaleString()}</div>
+
+        <div style={partialPayStyles.amountRow}>
+          <span style={partialPayStyles.yen}>¥</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+            placeholder="例：500"
+            style={partialPayStyles.amountInput}
+            autoFocus
+          />
+        </div>
+
+        <div style={dialogStyles.buttonRow}>
+          <button onClick={onCancel} style={dialogStyles.cancelButton}>やめる</button>
+          <button onClick={handleConfirm} style={dialogStyles.confirmButton}>わたした！</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+const partialPayStyles = {
+  balanceHint: { fontSize: "13px", color: "#a8946b", textAlign: "center", marginBottom: "16px", fontWeight: 700 },
+  amountRow: { display: "flex", alignItems: "center", border: "2px solid #EFE1BD", borderRadius: "16px", background: "#FFFDF4", minHeight: "54px", padding: "0 16px", marginBottom: "8px" },
+  yen: { fontSize: "21px", fontWeight: 700, color: "#a8946b", marginRight: "6px" },
+  amountInput: { flex: 1, border: "none", background: "transparent", fontSize: "21px", fontWeight: 700, color: "#4a3f2c", minWidth: 0 },
+};
+const balanceStyles = {
+  wrap: {
+    position: "relative",
+    margin: "16px",
+    padding: "20px",
+    background: "linear-gradient(160deg, #FBEFD2, #F5E3B8)",
+    border: "3px dashed #D9B66B",
+    borderRadius: "28px",
+    textAlign: "center",
+    boxShadow: "0 8px 18px rgba(180, 140, 60, 0.16)",
+    flexShrink: 0,
+  },
+  calcButton: {
+    position: "absolute",
+    top: "10px",
+    right: "10px",
+    minHeight: "44px",
+    minWidth: "44px",
+    border: "2px solid #D9A441",
+    borderRadius: "16px",
+    background: "#FFFEF7",
+    fontSize: "22px",
+    boxShadow: "0 2px 6px rgba(168,130,70,0.18)",
+  },
+  label: { fontSize: "15px", fontWeight: 700, color: "#7a5c3e", marginBottom: "6px" },
+  amount: { fontSize: "40px", fontWeight: 800, color: "#A8642A", letterSpacing: "1px", display: "inline-block" },
+  payButtonRow: { display: "flex", gap: "8px", justifyContent: "center", marginTop: "14px" },
+  payButton: {
+    minHeight: "48px",
+    padding: "0 18px",
+    border: "none",
+    borderRadius: "20px",
+    background: "#5b8c5a",
+    color: "#fff",
+    fontSize: "14px",
+    fontWeight: 800,
+    boxShadow: "0 3px 0 #426b41",
+  },
+  payButtonSecondary: {
+    minHeight: "48px",
+    padding: "0 16px",
+    border: "2px solid #D9B66B",
+    borderRadius: "20px",
+    background: "#FFFEF7",
+    color: "#7a5c3e",
+    fontSize: "14px",
+    fontWeight: 800,
+  },
+  payButtonDisabled: {
+    background: "#d8d0bc",
+    boxShadow: "none",
+    color: "#a89c80",
+    border: "none",
+  },
+};
+
+// ==========================================================
+// 12. お仕事追加フォーム（モーダル）
+// ==========================================================
+function AddJobModal({ open, onClose }) {
+  const { addJob } = useJobs();
+  const toast = useToast();
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [repeat, setRepeat] = useState(REPEAT_TYPE.DAILY);
+
+  if (!open) return null;
+
+  const handleAdd = () => {
+    if (!title.trim()) {
+      toast.show("なにを するか かいてね", "error");
+      return;
+    }
+    if (!amount.trim()) {
+      toast.show("きんがくを いれてね", "error");
+      return;
+    }
+    const amt = parseInt(amount, 10) || 0;
+    addJob({ title: title.trim(), amount: amt, repeat });
+    setTitle("");
+    setAmount("");
+    setRepeat(REPEAT_TYPE.DAILY);
+    onClose();
+  };
+
+  return (
+    <div style={dialogStyles.overlay} onClick={onClose}>
+      <div style={dialogStyles.dialog} onClick={(e) => e.stopPropagation()}>
+        <div style={dialogStyles.title}>あたらしい おしごと</div>
+
+        <div style={addJobStyles.field}>
+          <div style={addJobStyles.fieldLabel}>なにを する？（おてつだいの ないよう）</div>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="例：おさらあらい"
+            style={addJobStyles.input}
+            autoFocus
+          />
+        </div>
+
+        <div style={addJobStyles.field}>
+          <div style={addJobStyles.fieldLabel}>いくら？（きんがく）</div>
+          <div style={addJobStyles.amountRow}>
+            <span style={addJobStyles.yen}>¥</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="例：100"
+              style={addJobStyles.amountInput}
+            />
+          </div>
+        </div>
+
+        <div style={addJobStyles.field}>
+          <div style={addJobStyles.fieldLabel}>いつ する？（くりかえし）</div>
+          <div style={addJobStyles.repeatRow}>
+            <button
+              onClick={() => setRepeat(REPEAT_TYPE.DAILY)}
+              style={{...addJobStyles.repeatButton, ...(repeat === REPEAT_TYPE.DAILY ? addJobStyles.repeatButtonActive : {})}}
+            >
+              🔁 まいにち
+            </button>
+            <button
+              onClick={() => setRepeat(REPEAT_TYPE.ONCE)}
+              style={{...addJobStyles.repeatButton, ...(repeat === REPEAT_TYPE.ONCE ? addJobStyles.repeatButtonActive : {})}}
+            >
+              ☀️ きょうだけ
+            </button>
+          </div>
+        </div>
+
+        <div style={dialogStyles.buttonRow}>
+          <button onClick={onClose} style={dialogStyles.cancelButton}>やめる</button>
+          <button onClick={handleAdd} style={dialogStyles.confirmButton}>ついかする</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+const addJobStyles = {
+  field: { marginBottom: "16px" },
+  fieldLabel: { fontSize: "13px", color: "#a8946b", fontWeight: 700, marginBottom: "6px" },
+  input: { width: "100%", minHeight: "50px", fontSize: "16px", border: "2px solid #EFE1BD", borderRadius: "16px", padding: "0 14px", boxSizing: "border-box", background: "#FFFDF4", color: "#4a3f2c" },
+  amountRow: { display: "flex", alignItems: "center", border: "2px solid #EFE1BD", borderRadius: "16px", background: "#FFFDF4", minHeight: "50px", padding: "0 14px" },
+  yen: { fontSize: "18px", fontWeight: 700, color: "#a8946b", marginRight: "6px" },
+  amountInput: { flex: 1, border: "none", background: "transparent", fontSize: "18px", fontWeight: 700, color: "#4a3f2c", minWidth: 0 },
+  repeatRow: { display: "flex", gap: "8px" },
+  repeatButton: {
+    flex: 1,
+    minHeight: "48px",
+    border: "2px solid #EFE1BD",
+    borderRadius: "16px",
+    background: "#FFFDF4",
+    color: "#a8946b",
+    fontSize: "14px",
+    fontWeight: 800,
+  },
+  repeatButtonActive: { background: "#FFE9B8", border: "2px solid #D9A441", color: "#7a4a1e" },
+};
+
+// ==========================================================
+// 13. お仕事カード
+// ==========================================================
+function JobCard({ job, onDelete }) {
+  const { markGotcha, markThanks } = useJobs();
+  const [bouncing, setBouncing] = useState(null); // 'gotcha' | 'thanks' | null
+
+  const handleGotcha = () => {
+    markGotcha(job.id);
+    setBouncing("gotcha");
+    setTimeout(() => setBouncing(null), 450);
+  };
+
+  const handleThanks = () => {
+    setBouncing("thanks");
+    markThanks(job.id, job.amount, job.title);
+  };
+
+  const isGotchaDone = job.status === JOB_STATUS.GOTCHA || job.status === JOB_STATUS.DONE || job.status === JOB_STATUS.ARCHIVED;
+  const isFinished = job.status === JOB_STATUS.DONE;
+  const isArchived = job.status === JOB_STATUS.ARCHIVED;
+  const isOnce = job.repeat === REPEAT_TYPE.ONCE;
+
+  return (
+    <div style={{...jobCardStyles.wrap, ...((isFinished || isArchived) ? jobCardStyles.wrapFinished : {}), ...(isArchived ? jobCardStyles.wrapArchived : {})}}>
+      <div style={jobCardStyles.topRow}>
+        <div style={jobCardStyles.titleRow}>
+          <div style={jobCardStyles.title}>{job.title}</div>
+          {isOnce && <span style={jobCardStyles.onceBadge}>☀️ きょうだけ</span>}
+        </div>
+        <button onClick={() => onDelete(job.id)} style={jobCardStyles.deleteIcon} aria-label="削除">✕</button>
+      </div>
+
+      <div style={jobCardStyles.amount}>¥{job.amount.toLocaleString()}</div>
+
+      {job.gotchaAt && (
+        <div style={jobCardStyles.timeRow}>
+          ✅ がんばった！ {formatTime(job.gotchaAt)}
+          {job.thanksAt && <> ・ 🙏 ありがとう！ {formatTime(job.thanksAt)}</>}
+        </div>
+      )}
+
+      {isArchived ? (
+        <div style={jobCardStyles.archivedBanner}>
+          ✅ おわったよ（おしまい）
+        </div>
+      ) : isFinished ? (
+        <div style={jobCardStyles.finishedBanner}>
+          🌙 あしたも おねがいします！
+        </div>
+      ) : (
+        <div style={jobCardStyles.buttonRow}>
+          <button
+            onClick={handleGotcha}
+            disabled={isGotchaDone}
+            className={bouncing === "gotcha" ? "anim-bounce" : ""}
+            style={{
+              ...jobCardStyles.gotchaButton,
+              ...(isGotchaDone ? jobCardStyles.buttonDisabled : {}),
+            }}
+          >
+            😄 がんばった！
+          </button>
+          <button
+            onClick={handleThanks}
+            disabled={!isGotchaDone}
+            className={bouncing === "thanks" ? "anim-bounce" : ""}
+            style={{
+              ...jobCardStyles.thanksButton,
+              ...(!isGotchaDone ? jobCardStyles.buttonDisabled : {}),
+            }}
+          >
+            🙏 ありがとう！
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+const jobCardStyles = {
+  wrap: {
+    background: "#FFFEF7",
+    border: "2px solid #EFE1BD",
+    borderRadius: "24px",
+    padding: "16px 18px",
+    marginBottom: "14px",
+    boxShadow: "0 1px 0 #fff inset, 0 6px 14px rgba(168, 130, 70, 0.10), 0 2px 4px rgba(168, 130, 70, 0.08)",
+  },
+  wrapFinished: {
+    background: "#FBF7EC",
+    opacity: 0.85,
+  },
+  wrapArchived: {
+    background: "#F2EEE3",
+    opacity: 0.6,
+  },
+  finishedBanner: {
+    minHeight: "54px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "2px dashed #D9C9A0",
+    borderRadius: "20px",
+    background: "#F5EFDD",
+    color: "#a8946b",
+    fontSize: "15px",
+    fontWeight: 800,
+  },
+  archivedBanner: {
+    minHeight: "54px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "2px solid #DDD5C2",
+    borderRadius: "20px",
+    background: "#E8E2D2",
+    color: "#9c9080",
+    fontSize: "15px",
+    fontWeight: 800,
+  },
+  topRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" },
+  titleRow: { display: "flex", alignItems: "center", gap: "8px", flex: 1, flexWrap: "wrap" },
+  title: { fontSize: "18px", fontWeight: 800, color: "#4a3f2c" },
+  onceBadge: {
+    fontSize: "11px",
+    fontWeight: 800,
+    color: "#9c7c4e",
+    background: "#FBEFD2",
+    border: "1px solid #E0C896",
+    borderRadius: "10px",
+    padding: "2px 8px",
+  },
+  deleteIcon: { minHeight: "32px", minWidth: "32px", border: "none", background: "transparent", color: "#cbb892", fontSize: "16px", fontWeight: 700 },
+  amount: { fontSize: "26px", fontWeight: 800, color: "#A8642A", marginBottom: "10px" },
+  timeRow: { fontSize: "12px", color: "#8a9c6a", fontWeight: 700, marginBottom: "10px" },
+  buttonRow: { display: "flex", gap: "10px" },
+  gotchaButton: {
+    flex: 1,
+    minHeight: "54px",
+    border: "none",
+    borderRadius: "20px",
+    background: "linear-gradient(160deg, #FFD873, #F5B942)",
+    color: "#7a4a1e",
+    fontSize: "15px",
+    fontWeight: 800,
+    boxShadow: "0 4px 0 #d99a2c, 0 6px 10px rgba(245, 185, 66, 0.35)",
+  },
+  thanksButton: {
+    flex: 1,
+    minHeight: "54px",
+    border: "none",
+    borderRadius: "20px",
+    background: "linear-gradient(160deg, #8FCB8A, #5FA85C)",
+    color: "#fff",
+    fontSize: "15px",
+    fontWeight: 800,
+    boxShadow: "0 4px 0 #3f7a3d, 0 6px 10px rgba(95, 168, 92, 0.35)",
+  },
+  buttonDisabled: {
+    background: "#E8E2D2",
+    color: "#b8ab8c",
+    boxShadow: "none",
+  },
+};
+
+// ==========================================================
+// 14. お仕事リスト画面
+// ==========================================================
+function JobsScreen() {
+  const { jobs, deleteJob } = useJobs();
+  const [addOpen, setAddOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+
+  // お仕事は削除しない限り常にリストに残る。今日「ありがとう！」済みのものは下のグループへ。
+  const activeJobs = useMemo(
+    () => jobs.filter(j => j.status !== JOB_STATUS.DONE && j.status !== JOB_STATUS.ARCHIVED),
+    [jobs]
+  );
+  const finishedJobs = useMemo(
+    () => jobs.filter(j => j.status === JOB_STATUS.DONE || j.status === JOB_STATUS.ARCHIVED),
+    [jobs]
+  );
+
+  return (
+    <div className="tab-page" style={jobsScreenStyles.screen}>
+      <AppHeader />
+      <BalanceCard onOpenCalculator={() => setCalculatorOpen(true)} />
+
+      <div style={jobsScreenStyles.scrollArea}>
+        <div style={jobsScreenStyles.listHeader}>
+          <span style={jobsScreenStyles.listHeaderText}>おしごと リスト</span>
+          <button onClick={() => setAddOpen(true)} style={jobsScreenStyles.addButton}>＋ ついか</button>
+        </div>
+
+        {jobs.length === 0 ? (
+          <div style={jobsScreenStyles.emptyState}>
+            <div style={jobsScreenStyles.emptyEmoji}>📭</div>
+            <div style={jobsScreenStyles.emptyText}>おしごとが ないよ<br/>「＋ついか」で つくってね</div>
+          </div>
+        ) : (
+          <>
+            {activeJobs.map((job) => (
+              <JobCard key={job.id} job={job} onDelete={(id) => setDeleteTarget(id)} />
+            ))}
+
+            {finishedJobs.length > 0 && (
+              <>
+                <div style={jobsScreenStyles.finishedDivider}>おわった おしごと</div>
+                {finishedJobs.map((job) => (
+                  <JobCard key={job.id} job={job} onDelete={(id) => setDeleteTarget(id)} />
+                ))}
+              </>
+            )}
+          </>
+        )}
+
+        <div style={{ height: "16px" }} />
+      </div>
+
+      <AddJobModal open={addOpen} onClose={() => setAddOpen(false)} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="おしごとを なくす？"
+        message="これからは リストに でてこなくなるよ"
+        confirmLabel="なくす"
+        cancelLabel="やめる"
+        danger
+        onConfirm={() => { deleteJob(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {calculatorOpen && (
+        <div style={jobsScreenStyles.calculatorOverlay}>
+          <CalculatorTool onBack={() => setCalculatorOpen(false)} />
+        </div>
+      )}
+    </div>
+  );
+}
+const jobsScreenStyles = {
+  screen: { display: "flex", flexDirection: "column", height: "100%", background: "#FFFBF0" },
+  scrollArea: { flex: 1, overflowY: "auto", padding: "0 16px", WebkitOverflowScrolling: "touch" },
+  listHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", margin: "4px 0 12px" },
+  listHeaderText: { fontSize: "16px", fontWeight: 800, color: "#5a4530" },
+  addButton: { minHeight: "40px", padding: "0 16px", border: "2px solid #D9B66B", borderRadius: "18px", background: "#FBEFD2", color: "#7a5c3e", fontSize: "14px", fontWeight: 800 },
+  emptyState: { textAlign: "center", padding: "48px 0" },
+  emptyEmoji: { fontSize: "44px", marginBottom: "10px" },
+  emptyText: { fontSize: "14px", color: "#a8946b", fontWeight: 600, lineHeight: 1.6 },
+  finishedDivider: {
+    textAlign: "center",
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#a8946b",
+    margin: "18px 0 12px",
+    paddingTop: "12px",
+    borderTop: "2px dashed #E2D2A8",
+  },
+  calculatorOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9000,
+    background: "#FFFBF0",
+  },
+};
+
+// ==========================================================
+// 15. 日記（きょうなにした？）画面
+// ==========================================================
+const DIARY_STAMPS = [
+  { id: "happy", emoji: "😄", label: "たのしかった" },
+  { id: "good", emoji: "😊", label: "がんばった" },
+  { id: "tired", emoji: "😪", label: "つかれた" },
+  { id: "sad", emoji: "😢", label: "むずかしかった" },
+];
+
+const DIARY_SUBTABS = {
+  WRITE: "write",
+  CALENDAR: "calendar",
+};
+
+// ==========================================================
+// 15a. ストリーク達成モーダル（豪華演出）
+// ==========================================================
+function StreakCelebrationModal({ milestone, onClose }) {
+  const [confetti, setConfetti] = useState([]);
+
+  useEffect(() => {
+    if (!milestone) return;
+    const pieces = ["🎉", "✨", "🌟", "🎊", "👑", "🏆"];
+    const newPieces = Array.from({ length: 16 }, () => ({
+      id: Math.random().toString(36).slice(2),
+      emoji: pieces[Math.floor(Math.random() * pieces.length)],
+      left: Math.random() * 90,
+      delay: Math.random() * 0.5,
+    }));
+    setConfetti(newPieces);
+  }, [milestone]);
+
+  if (!milestone) return null;
+
+  return (
+    <div style={streakModalStyles.overlay} onClick={onClose}>
+      {confetti.map((c) => (
+        <span
+          key={c.id}
+          className="streak-confetti-piece"
+          style={{ left: `${c.left}%`, animationDelay: `${c.delay}s` }}
+        >
+          {c.emoji}
+        </span>
+      ))}
+      <div className="anim-streak-modal anim-streak-glow" style={streakModalStyles.card} onClick={(e) => e.stopPropagation()}>
+        <div style={streakModalStyles.emoji}>{milestone.emoji}</div>
+        <div style={streakModalStyles.title}>{milestone.label}</div>
+        <div style={streakModalStyles.sub}>すごいね！ よく がんばったね！</div>
+        <button onClick={onClose} style={streakModalStyles.closeButton}>やったー！</button>
+      </div>
+    </div>
+  );
+}
+const streakModalStyles = {
+  overlay: {
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+    background: "rgba(90,69,48,0.55)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    zIndex: 10001, padding: "20px", overflow: "hidden",
+  },
+  card: {
+    width: "100%", maxWidth: "300px",
+    background: "linear-gradient(160deg, #FFF6DD, #FFE9B8)",
+    border: "4px solid #D9A441",
+    borderRadius: "32px",
+    padding: "32px 24px",
+    textAlign: "center",
+  },
+  emoji: { fontSize: "56px", marginBottom: "10px" },
+  title: { fontSize: "21px", fontWeight: 800, color: "#7a4a1e", marginBottom: "8px" },
+  sub: { fontSize: "14px", color: "#9c7c4e", fontWeight: 700, marginBottom: "20px" },
+  closeButton: {
+    minHeight: "50px", padding: "0 28px",
+    border: "none", borderRadius: "20px",
+    background: "#A8642A", color: "#fff",
+    fontSize: "16px", fontWeight: 800,
+    boxShadow: "0 4px 0 #7a4a1e",
+  },
+};
+
+// ==========================================================
+// 15b. ストリーク表示バナー
+// ==========================================================
+function StreakBanner({ streak }) {
+  if (streak === 0) return null;
+  return (
+    <div style={streakBannerStyles.wrap}>
+      🔥 <span style={streakBannerStyles.count}>{streak}にち</span> れんぞく きろくちゅう！
+    </div>
+  );
+}
+const streakBannerStyles = {
+  wrap: {
+    margin: "0 16px 14px",
+    padding: "10px 16px",
+    background: "linear-gradient(135deg, #FFE9B8, #FFD873)",
+    border: "2px solid #D9A441",
+    borderRadius: "18px",
+    textAlign: "center",
+    fontSize: "14px",
+    fontWeight: 800,
+    color: "#7a4a1e",
+  },
+  count: { fontSize: "16px" },
+};
+
+// ==========================================================
+// 15c. ひらがなハイライト表示
+// ==========================================================
+// ひらがな文字だけを大きく・太く・黒で表示し、それ以外（漢字・カタカナ・記号）は小さく薄く表示する
+function HiraganaHighlightText({ text }) {
+  if (!text) return null;
+  const chars = Array.from(text);
+  return (
+    <span>
+      {chars.map((ch, i) => {
+        const isHiragana = /[\u3041-\u309f]/.test(ch);
+        const isSpaceOrPunct = /[\s、。！？「」]/.test(ch);
+        if (isSpaceOrPunct) {
+          return <span key={i}>{ch}</span>;
+        }
+        return (
+          <span
+            key={i}
+            style={isHiragana ? hiraganaHighlightStyles.big : hiraganaHighlightStyles.small}
+          >
+            {ch}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+const hiraganaHighlightStyles = {
+  big: { color: "#3a2f1c", fontWeight: 800, fontSize: "1.15em", fontFamily: "'Hiragino Maru Gothic ProN', 'Klee', sans-serif" },
+  small: { color: "#bba97e", fontWeight: 400, fontSize: "0.78em" },
+};
+
+// ==========================================================
+// 15d. 音声入力ボタン（Web Speech API）
+// ==========================================================
+function useSpeechRecognition(onResult, onError) {
+  const recognitionRef = useRef(null);
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(true);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSupported(false);
+      return;
+    }
+    const recog = new SpeechRecognition();
+    recog.lang = "ja-JP";
+    recog.continuous = true;
+    recog.interimResults = true;
+
+    recog.onresult = (event) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = 0; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalText += transcript;
+        } else {
+          interimText += transcript;
+        }
+      }
+      onResult(finalText + interimText);
+    };
+    recog.onerror = (event) => {
+      setListening(false);
+      if (onError) onError(event.error);
+    };
+    recog.onend = () => setListening(false);
+
+    recognitionRef.current = recog;
+    return () => {
+      try { recog.stop(); } catch (e) {}
+    };
+  }, [onResult, onError]);
+
+  const start = useCallback(() => {
+    if (!recognitionRef.current) {
+      if (onError) onError("no-recognition");
+      return;
+    }
+    // file:// など、マイクへのアクセスがそもそも許されない環境を先にチェックする
+    if (!navigator.mediaDevices || !window.isSecureContext) {
+      if (onError) onError("insecure-context");
+      return;
+    }
+    try {
+      recognitionRef.current.start();
+      setListening(true);
+    } catch (e) {
+      // 既に開始している場合などはここに来ることがあるが、表示中なら無視してよい
+    }
+  }, [onError]);
+
+  const stop = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.stop();
+    } catch (e) {}
+    setListening(false);
+  }, []);
+
+  return { listening, supported, start, stop };
+}
+
+// マイクが使えない理由を、ひらがな主体のやさしい言葉に変換する
+function speechErrorMessage(errorCode) {
+  switch (errorCode) {
+    case "insecure-context":
+      return "いまの ひらきかただと マイクが つかえないみたい。インターネットで みれる じょうたいに してから ためしてね";
+    case "not-allowed":
+    case "service-not-allowed":
+      return "マイクの きょかが ないみたい。せっていから ゆるしてあげてね";
+    case "no-speech":
+      return "おとが きこえなかったよ。もう いちど ためしてね";
+    case "network":
+      return "ネットワークの せつぞくが ひつようだよ";
+    default:
+      return "いまは マイクが つかえないみたい。てにゅうりょくで かいてね";
+  }
+}
+
+// ==========================================================
+// 15e. 記録入力画面（音声入力＋ひらがな変換）
+// ==========================================================
+function DiaryWriteScreen({ streak }) {
+  const { diaryEntries, addEntry, deleteEntry } = useDiary();
+  const [memo, setMemo] = useState("");
+  const [hiraganaPreview, setHiraganaPreview] = useState("");
+  const [hiraganaLoading, setHiraganaLoading] = useState(false);
+  const [hiraganaFailed, setHiraganaFailed] = useState(false);
+  const [selectedStamp, setSelectedStamp] = useState(null);
+  const [poppingStamp, setPoppingStamp] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const toast = useToast();
+  const handleSpeechResult = useCallback((text) => {
+    setMemo(text);
+  }, []);
+  const handleSpeechError = useCallback((errorCode) => {
+    toast.show(speechErrorMessage(errorCode), "error");
+  }, [toast]);
+  const { listening, supported, start, stop } = useSpeechRecognition(handleSpeechResult, handleSpeechError);
+
+  // memoが変わるたびに、ひらがな変換をデバウンスで実行
+  useEffect(() => {
+    if (!memo.trim()) {
+      setHiraganaPreview("");
+      setHiraganaFailed(false);
+      return;
+    }
+    setHiraganaLoading(true);
+    const timer = setTimeout(() => {
+      loadKuromojiTokenizer()
+        .then((tokenizer) => {
+          const result = tokensToHiragana(tokenizer, memo);
+          setHiraganaPreview(result);
+          setHiraganaFailed(false);
+          setHiraganaLoading(false);
+        })
+        .catch(() => {
+          // 読み込み失敗時は、元のテキストをそのまま表示するフォールバック
+          setHiraganaPreview(memo);
+          setHiraganaFailed(true);
+          setHiraganaLoading(false);
+        });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [memo]);
+
+  const handleStampSelect = (id) => {
+    setSelectedStamp(id);
+    setPoppingStamp(id);
+    setTimeout(() => setPoppingStamp(null), 450);
+  };
+
+  const handleSave = () => {
+    if (!memo.trim() && !selectedStamp) return;
+    addEntry({
+      date: new Date().toISOString().split("T")[0],
+      memo: memo.trim(),
+      hiragana: hiraganaPreview,
+      stamp: selectedStamp,
+    });
+    setMemo("");
+    setHiraganaPreview("");
+    setSelectedStamp(null);
+    if (listening) stop();
+  };
+
+  const sortedEntries = useMemo(
+    () => [...diaryEntries].sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [diaryEntries]
+  );
+
+  return (
+    <>
+      <StreakBanner streak={streak} />
+
+      <div style={diaryStyles.card}>
+        <div style={diaryStyles.cardLabel}>きょうの きもち</div>
+        <div style={diaryStyles.stampRow}>
+          {DIARY_STAMPS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => handleStampSelect(s.id)}
+              className={poppingStamp === s.id ? "anim-bounce" : ""}
+              style={{...diaryStyles.stampButton, ...(selectedStamp === s.id ? diaryStyles.stampButtonActive : {})}}
+            >
+              <div style={diaryStyles.stampEmoji}>{s.emoji}</div>
+              <div style={diaryStyles.stampLabel}>{s.label}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={diaryStyles.card}>
+        <div style={diaryStyles.cardLabelRow}>
+          <span style={diaryStyles.cardLabel}>きょう なにした？</span>
+          {supported && (
+            <button
+              onClick={() => (listening ? stop() : start())}
+              style={{...diaryStyles.micButton, ...(listening ? diaryStyles.micButtonActive : {})}}
+            >
+              {listening ? "🔴 きいてるよ…" : "🎤 おはなしする"}
+            </button>
+          )}
+        </div>
+
+        <textarea
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="じゆうに かいてね（または マイクで おはなししてね）"
+          style={diaryStyles.textarea}
+          rows={4}
+        />
+
+        {!supported && (
+          <div style={diaryStyles.micUnsupported}>※ このブラウザは おんせい入力に たいおうしていないみたい</div>
+        )}
+        {supported && (
+          <div style={diaryStyles.micUnsupported}>※ マイクは つかえたら つかえる おまけ きのうだよ。うまく いかないときは てにゅうりょくしてね</div>
+        )}
+
+        {memo.trim() && (
+          <div style={diaryStyles.previewBox}>
+            <div style={diaryStyles.previewOriginal}>{memo}</div>
+            <div style={diaryStyles.previewHiragana}>
+              {hiraganaLoading ? (
+                <span style={diaryStyles.previewLoading}>ひらがなに しているよ…</span>
+              ) : (
+                <HiraganaHighlightText text={hiraganaPreview} />
+              )}
+            </div>
+            {hiraganaFailed && (
+              <div style={diaryStyles.previewNote}>※ ひらがな変換が うまく できなかったので、もとの文章を そのまま表示しているよ</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <button onClick={handleSave} style={diaryStyles.saveButton}>📔 きろくする！</button>
+
+      <div style={diaryStyles.historyLabel}>いままでの きろく</div>
+
+      {sortedEntries.length === 0 ? (
+        <div style={diaryStyles.emptyState}>
+          <div style={diaryStyles.emptyEmoji}>📭</div>
+          <div style={diaryStyles.emptyText}>まだ きろくがないよ</div>
+        </div>
+      ) : (
+        sortedEntries.map((entry) => {
+          const stamp = entry.stamp ? DIARY_STAMPS.find(s => s.id === entry.stamp) : null;
+          return (
+            <div key={entry.id} style={diaryStyles.entryCard}>
+              <div style={diaryStyles.entryTop}>
+                <span style={diaryStyles.entryDate}>{formatDateShort(entry.date)}</span>
+                {stamp && <span style={diaryStyles.entryStamp}>{stamp.emoji}</span>}
+              </div>
+              {entry.memo && (
+                <div style={diaryStyles.entryMemoBlock}>
+                  <div style={diaryStyles.entryMemoOriginal}>{entry.memo}</div>
+                  {entry.hiragana && (
+                    <div style={diaryStyles.entryMemoHiragana}>
+                      <HiraganaHighlightText text={entry.hiragana} />
+                    </div>
+                  )}
+                </div>
+              )}
+              <button onClick={() => setDeleteTarget(entry.id)} style={diaryStyles.deleteButton}>🗑 けす</button>
+            </div>
+          );
+        })
+      )}
+
+      <div style={{ height: "16px" }} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="きろくを けす？"
+        message="この きろくは もとに もどせないよ"
+        confirmLabel="けす"
+        cancelLabel="やめる"
+        danger
+        onConfirm={() => { deleteEntry(deleteTarget); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
+  );
+}
+
+// ==========================================================
+// 15f. カレンダー画面（日付タップで一括表示）
+// ==========================================================
+function DiaryCalendarScreen() {
+  const { diaryEntries } = useDiary();
+  const { completedJobs } = useJobs();
+  const [viewMonth, setViewMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() }; // month: 0-11
+  });
+  const [selectedDate, setSelectedDate] = useState(null);
+
+  const entriesByDate = useMemo(() => {
+    const map = {};
+    diaryEntries.forEach((e) => {
+      if (!map[e.date]) map[e.date] = [];
+      map[e.date].push(e);
+    });
+    return map;
+  }, [diaryEntries]);
+
+  // 「ありがとう！」を押した時点で記録される実績履歴を日付ごとにまとめる
+  // ※この履歴は今回の機能追加以降に積み上がる。それより前の完了分は記録されていない。
+  const completedJobsByDate = useMemo(() => {
+    const map = {};
+    completedJobs.forEach((c) => {
+      if (!map[c.date]) map[c.date] = [];
+      map[c.date].push(c);
+    });
+    return map;
+  }, [completedJobs]);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const daysInMonth = new Date(viewMonth.year, viewMonth.month + 1, 0).getDate();
+  const firstWeekday = new Date(viewMonth.year, viewMonth.month, 1).getDay();
+
+  const calendarCells = useMemo(() => {
+    const cells = [];
+    for (let i = 0; i < firstWeekday; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return cells;
+  }, [firstWeekday, daysInMonth]);
+
+  const dateKey = (day) => {
+    const mm = String(viewMonth.month + 1).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    return `${viewMonth.year}-${mm}-${dd}`;
+  };
+
+  const changeMonth = (delta) => {
+    setSelectedDate(null);
+    setViewMonth((prev) => {
+      let { year, month } = prev;
+      month += delta;
+      if (month < 0) { month = 11; year -= 1; }
+      if (month > 11) { month = 0; year += 1; }
+      return { year, month };
+    });
+  };
+
+  const selectedEntries = selectedDate ? (entriesByDate[selectedDate] || []) : [];
+  const selectedJobs = selectedDate ? (completedJobsByDate[selectedDate] || []) : [];
+  const selectedJobsTotal = selectedJobs.reduce((sum, j) => sum + j.amount, 0);
+
+  return (
+    <>
+      <div style={calendarStyles.monthHeader}>
+        <button onClick={() => changeMonth(-1)} style={calendarStyles.monthNavButton}>◁</button>
+        <div style={calendarStyles.monthLabel}>{viewMonth.year}ねん {viewMonth.month + 1}がつ</div>
+        <button onClick={() => changeMonth(1)} style={calendarStyles.monthNavButton}>▷</button>
+      </div>
+
+      <div style={calendarStyles.weekdayRow}>
+        {["にち", "げつ", "か", "すい", "もく", "きん", "ど"].map((w) => (
+          <div key={w} style={calendarStyles.weekdayCell}>{w}</div>
+        ))}
+      </div>
+
+      <div style={calendarStyles.grid}>
+        {calendarCells.map((day, idx) => {
+          if (day === null) return <div key={idx} style={calendarStyles.emptyCell} />;
+          const key = dateKey(day);
+          const hasEntry = !!entriesByDate[key];
+          const hasJob = !!completedJobsByDate[key];
+          const isSelected = selectedDate === key;
+          const isTodayCell = key === todayStr;
+          return (
+            <button
+              key={idx}
+              onClick={() => setSelectedDate(key)}
+              style={{
+                ...calendarStyles.dayCell,
+                ...(isTodayCell ? calendarStyles.dayCellToday : {}),
+                ...(isSelected ? calendarStyles.dayCellSelected : {}),
+              }}
+            >
+              <span>{day}</span>
+              <span style={calendarStyles.dotRow}>
+                {hasEntry && <span style={calendarStyles.dayDotDiary}>●</span>}
+                {hasJob && <span style={calendarStyles.dayDotJob}>●</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={calendarStyles.legendRow}>
+        <span style={calendarStyles.legendItem}><span style={calendarStyles.dayDotDiary}>●</span> にっき</span>
+        <span style={calendarStyles.legendItem}><span style={calendarStyles.dayDotJob}>●</span> おしごと</span>
+      </div>
+
+      {selectedDate && (
+        <div style={calendarStyles.detailCard}>
+          <div style={calendarStyles.detailTitle}>{selectedDate} の きろく</div>
+
+          <div style={calendarStyles.detailSection}>
+            <div style={calendarStyles.detailSectionLabel}>📔 にっき</div>
+            {selectedEntries.length === 0 ? (
+              <div style={calendarStyles.detailEmpty}>きろくは ないよ</div>
+            ) : (
+              selectedEntries.map((entry) => {
+                const stamp = entry.stamp ? DIARY_STAMPS.find(s => s.id === entry.stamp) : null;
+                return (
+                  <div key={entry.id} style={calendarStyles.detailEntry}>
+                    {stamp && <span style={calendarStyles.detailStamp}>{stamp.emoji}</span>}
+                    {entry.memo && <span style={calendarStyles.detailMemo}>{entry.memo}</span>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div style={calendarStyles.detailSection}>
+            <div style={calendarStyles.detailSectionLabel}>🙏 おわった おしごと</div>
+            {selectedJobs.length === 0 ? (
+              <div style={calendarStyles.detailEmpty}>きろくは ないよ</div>
+            ) : (
+              <>
+                {selectedJobs.map((job) => (
+                  <div key={job.id} style={calendarStyles.detailJobRow}>
+                    <span>{job.title}</span>
+                    <span style={calendarStyles.detailJobAmount}>¥{job.amount.toLocaleString()}</span>
+                  </div>
+                ))}
+                <div style={calendarStyles.detailJobTotalRow}>
+                  <span>この日の ごうけい</span>
+                  <span style={calendarStyles.detailJobAmount}>¥{selectedJobsTotal.toLocaleString()}</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+const calendarStyles = {
+  monthHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 4px 12px" },
+  monthNavButton: { minHeight: "44px", minWidth: "44px", border: "2px solid #EFE1BD", borderRadius: "14px", background: "#FFFEF7", color: "#7a5c3e", fontSize: "16px", fontWeight: 800 },
+  monthLabel: { fontSize: "16px", fontWeight: 800, color: "#5a4530" },
+  weekdayRow: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: "4px" },
+  weekdayCell: { textAlign: "center", fontSize: "11px", fontWeight: 700, color: "#a8946b", padding: "4px 0" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", marginBottom: "16px" },
+  emptyCell: { minHeight: "44px" },
+  dayCell: {
+    minHeight: "44px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "2px solid #EFE1BD",
+    borderRadius: "14px",
+    background: "#FFFEF7",
+    color: "#4a3f2c",
+    fontSize: "13px",
+    fontWeight: 700,
+    gap: "1px",
+  },
+  dayCellToday: { border: "2px solid #D9A441", background: "#FFF6DD" },
+  dayCellSelected: { background: "#FFE9B8", border: "2px solid #D9A441" },
+  dotRow: { display: "flex", gap: "2px", height: "8px" },
+  dayDotDiary: { fontSize: "8px", color: "#5FA85C" },
+  dayDotJob: { fontSize: "8px", color: "#A8642A" },
+  legendRow: { display: "flex", justifyContent: "center", gap: "16px", marginBottom: "14px" },
+  legendItem: { display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "#a8946b", fontWeight: 700 },
+  detailCard: {
+    background: "#FFFEF7",
+    border: "2px solid #EFE1BD",
+    borderRadius: "22px",
+    padding: "16px 18px",
+    marginBottom: "16px",
+    boxShadow: "0 2px 6px rgba(168,130,70,0.10)",
+  },
+  detailTitle: { fontSize: "15px", fontWeight: 800, color: "#5a4530", marginBottom: "12px" },
+  detailSection: { marginBottom: "12px" },
+  detailSectionLabel: { fontSize: "13px", fontWeight: 800, color: "#7a5c3e", marginBottom: "8px" },
+  detailEmpty: { fontSize: "13px", color: "#bba97e", fontWeight: 600 },
+  detailEntry: { display: "flex", gap: "8px", alignItems: "flex-start", marginBottom: "6px", fontSize: "13px", color: "#4a3f2c" },
+  detailStamp: { fontSize: "18px" },
+  detailMemo: { flex: 1, lineHeight: 1.5 },
+  detailJobRow: { display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#4a3f2c", marginBottom: "6px" },
+  detailJobTotalRow: { display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#5a4530", fontWeight: 800, marginTop: "8px", paddingTop: "8px", borderTop: "2px dashed #EFE1BD" },
+  detailJobAmount: { fontWeight: 800, color: "#A8642A" },
+  detailNote: { fontSize: "11px", color: "#bba97e", marginTop: "6px" },
+};
+
+// ==========================================================
+// 15. 日記（きょうなにした？）画面
+// ==========================================================
+function DiaryScreen() {
+  const { diaryEntries, streak, streakMilestonesShown, markStreakShown } = useDiary();
+  const [subTab, setSubTab] = useState(DIARY_SUBTABS.WRITE);
+  const [celebratingMilestone, setCelebratingMilestone] = useState(null);
+
+  // ストリークが新しいマイルストーンに達したら演出を表示
+  useEffect(() => {
+    const reached = STREAK_MILESTONES.find(
+      (m) => streak >= m.days && !streakMilestonesShown.includes(m.days)
+    );
+    if (reached) {
+      setCelebratingMilestone(reached);
+    }
+  }, [streak, streakMilestonesShown]);
+
+  const handleCloseCelebration = () => {
+    if (celebratingMilestone) {
+      markStreakShown(celebratingMilestone.days);
+    }
+    setCelebratingMilestone(null);
+  };
+
+  return (
+    <div className="tab-page" style={diaryStyles.screen}>
+      <AppHeader />
+
+      <div style={diaryStyles.subTabRow}>
+        <button
+          onClick={() => setSubTab(DIARY_SUBTABS.WRITE)}
+          style={{...diaryStyles.subTabButton, ...(subTab === DIARY_SUBTABS.WRITE ? diaryStyles.subTabButtonActive : {})}}
+        >
+          📔 きろく
+        </button>
+        <button
+          onClick={() => setSubTab(DIARY_SUBTABS.CALENDAR)}
+          style={{...diaryStyles.subTabButton, ...(subTab === DIARY_SUBTABS.CALENDAR ? diaryStyles.subTabButtonActive : {})}}
+        >
+          📅 カレンダー
+        </button>
+      </div>
+
+      <div style={diaryStyles.scrollArea}>
+        {subTab === DIARY_SUBTABS.WRITE ? (
+          <DiaryWriteScreen streak={streak} />
+        ) : (
+          <DiaryCalendarScreen />
+        )}
+      </div>
+
+      <StreakCelebrationModal milestone={celebratingMilestone} onClose={handleCloseCelebration} />
+    </div>
+  );
+}
+const diaryStyles = {
+  screen: { display: "flex", flexDirection: "column", height: "100%", background: "#FFFBF0" },
+  subTabRow: { display: "flex", gap: "8px", padding: "12px 16px 0", flexShrink: 0 },
+  subTabButton: {
+    flex: 1,
+    minHeight: "44px",
+    border: "2px solid #EFE1BD",
+    borderRadius: "16px",
+    background: "#FFFEF7",
+    color: "#a8946b",
+    fontSize: "14px",
+    fontWeight: 800,
+  },
+  subTabButtonActive: { background: "#FFE9B8", border: "2px solid #D9A441", color: "#7a4a1e" },
+  scrollArea: { flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" },
+  card: {
+    background: "#FFFEF7",
+    border: "2px solid #EFE1BD",
+    borderRadius: "24px",
+    padding: "16px 18px",
+    marginBottom: "16px",
+    boxShadow: "0 1px 0 #fff inset, 0 6px 14px rgba(168, 130, 70, 0.10), 0 2px 4px rgba(168, 130, 70, 0.08)",
+  },
+  cardLabel: { fontSize: "16px", fontWeight: 800, color: "#5a4530", marginBottom: "12px" },
+  cardLabelRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", gap: "8px" },
+  micButton: {
+    minHeight: "40px",
+    padding: "0 14px",
+    border: "2px solid #D9B66B",
+    borderRadius: "16px",
+    background: "#FBEFD2",
+    color: "#7a5c3e",
+    fontSize: "13px",
+    fontWeight: 800,
+    whiteSpace: "nowrap",
+  },
+  micButtonActive: { background: "#FFD4D4", border: "2px solid #E08A8A", color: "#b04545" },
+  micUnsupported: { fontSize: "11px", color: "#bba97e", marginTop: "8px" },
+  stampRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" },
+  stampButton: {
+    minHeight: "78px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "5px",
+    border: "2px solid #EFE1BD",
+    borderRadius: "20px",
+    background: "#FFFDF4",
+    padding: "8px 2px",
+    boxShadow: "0 2px 4px rgba(168,130,70,0.08)",
+  },
+  stampButtonActive: { background: "#FFE9B8", border: "2px solid #D9A441", boxShadow: "0 4px 10px rgba(217,164,65,0.3)" },
+  stampEmoji: { fontSize: "28px" },
+  stampLabel: { fontSize: "10.5px", color: "#7a5c3e", fontWeight: 700, textAlign: "center", lineHeight: 1.2 },
+  textarea: { width: "100%", fontSize: "15px", border: "2px solid #EFE1BD", borderRadius: "16px", padding: "12px 16px", boxSizing: "border-box", background: "#FFFDF4", color: "#4a3f2c", resize: "none", fontFamily: "inherit" },
+  previewBox: {
+    marginTop: "12px",
+    padding: "12px 14px",
+    background: "#FBF7EC",
+    border: "2px dashed #E2D2A8",
+    borderRadius: "16px",
+  },
+  previewOriginal: { fontSize: "12px", color: "#bba97e", marginBottom: "8px", lineHeight: 1.6 },
+  previewHiragana: { fontSize: "17px", lineHeight: 1.8 },
+  previewLoading: { fontSize: "13px", color: "#bba97e", fontWeight: 600 },
+  previewNote: { fontSize: "11px", color: "#cbb892", marginTop: "8px" },
+  saveButton: {
+    width: "100%",
+    minHeight: "56px",
+    background: "linear-gradient(160deg, #BD7A3E, #A8642A)",
+    color: "#fff",
+    border: "none",
+    borderRadius: "22px",
+    fontSize: "18px",
+    fontWeight: 800,
+    boxShadow: "0 4px 0 #7a4a1e, 0 8px 14px rgba(168,100,42,0.3)",
+    marginBottom: "20px",
+  },
+  historyLabel: { fontSize: "15px", fontWeight: 800, color: "#5a4530", marginBottom: "12px" },
+  emptyState: { textAlign: "center", padding: "32px 0" },
+  emptyEmoji: { fontSize: "38px", marginBottom: "8px" },
+  emptyText: { fontSize: "14px", color: "#a8946b", fontWeight: 600 },
+  entryCard: {
+    background: "#FFFEF7",
+    border: "2px solid #EFE1BD",
+    borderRadius: "20px",
+    padding: "14px 16px",
+    marginBottom: "12px",
+    boxShadow: "0 2px 4px rgba(168,130,70,0.08)",
+  },
+  entryTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" },
+  entryDate: { fontSize: "13px", fontWeight: 700, color: "#a8946b", background: "#FBEFD2", borderRadius: "10px", padding: "2px 10px" },
+  entryStamp: { fontSize: "22px" },
+  entryMemoBlock: { marginBottom: "8px" },
+  entryMemoOriginal: { fontSize: "11px", color: "#bba97e", whiteSpace: "pre-wrap", marginBottom: "6px", lineHeight: 1.5 },
+  entryMemoHiragana: { fontSize: "16px", lineHeight: 1.7, whiteSpace: "pre-wrap" },
+  deleteButton: { minHeight: "38px", width: "100%", border: "2px solid #ECD3CE", borderRadius: "14px", background: "#FCF1F1", color: "#b06060", fontSize: "13px", fontWeight: 700 },
+};
+
+// ==========================================================
+// 15g. 設定画面（毎月のおこづかい設定）
+// ==========================================================
+function SettingsScreen() {
+  const { settings, updateSettings, exportData, importData, resetAll } = useSettings();
+  const fileInputRef = useRef(null);
+  const [goalAmount, setGoalAmount] = useState(String(settings.monthlyGoalAmount ?? 1000));
+  const [payoutDay, setPayoutDay] = useState(settings.payoutDay ?? 25);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  // settingsが外部要因（インポート等）で変わったら入力欄も追従させる
+  useEffect(() => {
+    setGoalAmount(String(settings.monthlyGoalAmount ?? 1000));
+    setPayoutDay(settings.payoutDay ?? 25);
+  }, [settings.monthlyGoalAmount, settings.payoutDay]);
+
+  const handleGoalAmountChange = (e) => {
+    const val = e.target.value.replace(/[^0-9]/g, "");
+    setGoalAmount(val);
+    updateSettings({ monthlyGoalAmount: parseInt(val, 10) || 0 });
+  };
+
+  const handlePayoutDayChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setPayoutDay(val);
+    updateSettings({ payoutDay: val });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (file) importData(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="tab-page" style={settingsStyles.screen}>
+      <AppHeader />
+
+      <div style={settingsStyles.scrollArea}>
+        <div style={settingsStyles.card}>
+          <div style={settingsStyles.cardLabel}>まいつきの もくひょう おこづかい</div>
+          <div style={settingsStyles.amountRow}>
+            <span style={settingsStyles.yen}>¥</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={goalAmount}
+              onChange={handleGoalAmountChange}
+              style={settingsStyles.amountInput}
+            />
+            <span style={settingsStyles.amountUnit}>/ つき</span>
+          </div>
+        </div>
+
+        <div style={settingsStyles.card}>
+          <div style={settingsStyles.cardLabel}>おこづかいが つく日</div>
+          <select
+            value={payoutDay}
+            onChange={handlePayoutDayChange}
+            style={settingsStyles.select}
+          >
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={d}>
+                まいつき {d}にち{d === 31 ? "（げつまつ）" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={settingsStyles.card}>
+          <div style={settingsStyles.cardLabel}>データの バックアップ</div>
+          <button onClick={exportData} style={settingsStyles.actionButton}>
+            ⬇️ データを エクスポート
+          </button>
+          <button onClick={handleImportClick} style={{...settingsStyles.actionButton, ...settingsStyles.actionButtonSecondary}}>
+            ⬆️ データを インポート
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            onChange={handleFileSelected}
+            style={{ display: "none" }}
+          />
+        </div>
+
+        <div style={settingsStyles.card}>
+          <div style={settingsStyles.cardLabel}>ぜんぶ きれいにする</div>
+          <button onClick={() => setResetConfirmOpen(true)} style={settingsStyles.dangerButton}>
+            🗑 ぜんぶの データを けす
+          </button>
+        </div>
+
+        <div style={{ height: "16px" }} />
+      </div>
+
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        title="ぜんぶ きえちゃうよ？"
+        message="おしごと・きろく・おこづかい、すべてのデータが もとに もどせなくなるよ"
+        confirmLabel="きれいにする"
+        cancelLabel="やめる"
+        danger
+        onConfirm={() => { resetAll(); setResetConfirmOpen(false); }}
+        onCancel={() => setResetConfirmOpen(false)}
+      />
+    </div>
+  );
+}
+const settingsStyles = {
+  screen: { display: "flex", flexDirection: "column", height: "100%", background: "#FFFBF0" },
+  scrollArea: { flex: 1, overflowY: "auto", padding: "16px", WebkitOverflowScrolling: "touch" },
+  card: {
+    background: "#FFFEF7",
+    border: "2px solid #EFE1BD",
+    borderRadius: "24px",
+    padding: "16px 18px",
+    marginBottom: "16px",
+    boxShadow: "0 1px 0 #fff inset, 0 6px 14px rgba(168, 130, 70, 0.10), 0 2px 4px rgba(168, 130, 70, 0.08)",
+  },
+  cardLabel: { fontSize: "16px", fontWeight: 800, color: "#5a4530", marginBottom: "12px" },
+  amountRow: { display: "flex", alignItems: "center", border: "2px solid #EFE1BD", borderRadius: "16px", background: "#FFFDF4", minHeight: "54px", padding: "0 16px" },
+  yen: { fontSize: "21px", fontWeight: 700, color: "#a8946b", marginRight: "6px" },
+  amountInput: { flex: 1, border: "none", background: "transparent", fontSize: "21px", fontWeight: 700, color: "#4a3f2c", minWidth: 0 },
+  amountUnit: { fontSize: "13px", color: "#a8946b", whiteSpace: "nowrap", fontWeight: 700 },
+  select: {
+    width: "100%",
+    minHeight: "54px",
+    fontSize: "16px",
+    fontWeight: 700,
+    border: "2px solid #EFE1BD",
+    borderRadius: "16px",
+    padding: "0 14px",
+    background: "#FFFDF4",
+    color: "#4a3f2c",
+    boxSizing: "border-box",
+  },
+  actionButton: {
+    width: "100%",
+    minHeight: "52px",
+    border: "2px solid #D9B66B",
+    borderRadius: "18px",
+    background: "#FBEFD2",
+    color: "#7a5c3e",
+    fontSize: "15px",
+    fontWeight: 800,
+    marginBottom: "10px",
+  },
+  actionButtonSecondary: { background: "#FFFEF7", border: "2px solid #EFE1BD", marginBottom: 0 },
+  dangerButton: {
+    width: "100%",
+    minHeight: "52px",
+    border: "2px solid #ECD3CE",
+    borderRadius: "18px",
+    background: "#FCF1F1",
+    color: "#b06060",
+    fontSize: "15px",
+    fontWeight: 800,
+  },
+};
+
+// ==========================================================
+// 15h. おかねの けいさんき（計算機ツール・モーダル）
+// ==========================================================
+
+// ---- 音の演出（Web Audio APIで「ポン」を直接合成。音声ファイル不要） ----
+let calcAudioCtx = null;
+function getCalcAudioCtx() {
+  if (!calcAudioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    calcAudioCtx = new AC();
+  }
+  return calcAudioCtx;
+}
+function calcPlayPon(freq = 660, duration = 0.09) {
+  const ctx = getCalcAudioCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") ctx.resume();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.6, ctx.currentTime + duration);
+  gain.gain.setValueAtTime(0.18, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+}
+function calcPlayMergeChime() {
+  [880, 1108, 1320].forEach((freq, i) => {
+    setTimeout(() => calcPlayPon(freq, 0.16), i * 90);
+  });
+}
+
+// ---- 紙幣・硬貨 分解ロジック（金額 → 各単位の枚数） ----
+const COIN_UNITS = [
+  { unit: 10000, type: "bill", label: "1まんえん", short: "1まん", color: "#8FAE7A", textColor: "#2c3d20" },
+  { unit: 5000, type: "bill", label: "5せんえん", short: "5せん", color: "#C9A0B8", textColor: "#3d2530" },
+  { unit: 1000, type: "bill", label: "1せんえん", short: "1せん", color: "#A8C0D8", textColor: "#243040" },
+  { unit: 500, type: "coin", label: "500えんだま", short: "500えん", color: "#C0C8CC", textColor: "#30383c" },
+  { unit: 100, type: "coin", label: "100えんだま", short: "100えん", color: "#C9A646", textColor: "#5a4214" },
+  { unit: 50, type: "coin", label: "50えんだま", short: "50えん", color: "#CCCFC0", textColor: "#3a3c30" },
+  { unit: 10, type: "coin", label: "10えんだま", short: "10えん", color: "#C97A4A", textColor: "#4a2c14" },
+  { unit: 1, type: "coin", label: "1えんだま", short: "1えん", color: "#B8C4CC", textColor: "#3a4248" },
+];
+
+function breakdownToCoins(amount) {
+  let remaining = Math.max(0, Math.floor(amount));
+  return COIN_UNITS.map(({ unit }) => {
+    const count = Math.floor(remaining / unit);
+    remaining -= count * unit;
+    return count;
+  });
+}
+
+// ---- 硬貨アイコン（CSSで描く、画像ファイル不要） ----
+function CoinIcon({ unitInfo, animKey }) {
+  const isBill = unitInfo.type === "bill";
+
+  if (isBill) {
+    return (
+      <div
+        key={animKey}
+        className="anim-coin-in"
+        style={{
+          width: "52px",
+          height: "30px",
+          borderRadius: "5px",
+          background: `linear-gradient(135deg, ${unitInfo.color}, ${unitInfo.color}cc)`,
+          border: `2px solid ${unitInfo.textColor}55`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 2px 4px rgba(90,66,20,0.25), inset 0 1px 2px rgba(255,255,255,0.4)",
+          color: unitInfo.textColor,
+          fontWeight: 800,
+          fontSize: "10px",
+          flexShrink: 0,
+        }}
+      >
+        {unitInfo.short}
+      </div>
+    );
+  }
+
+  const size = unitInfo.unit >= 500 ? "44px" : unitInfo.unit >= 50 ? "38px" : "32px";
+  return (
+    <div
+      key={animKey}
+      className="anim-coin-in"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `radial-gradient(circle at 35% 30%, ${unitInfo.color}, ${unitInfo.color}cc)`,
+        border: `3px solid ${unitInfo.textColor}55`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 2px 4px rgba(90,66,20,0.25), inset 0 2px 3px rgba(255,255,255,0.4)",
+        color: unitInfo.textColor,
+        fontWeight: 800,
+        fontSize: unitInfo.unit >= 100 ? "11px" : "10px",
+        flexShrink: 0,
+      }}
+    >
+      {unitInfo.unit}
+    </div>
+  );
+}
+
+// ---- 硬貨の山表示 ----
+function CoinPile({ counts, mergeAnim, sparkles }) {
+  return (
+    <div style={coinPileStyles.wrap}>
+      <div style={coinPileStyles.row}>
+        {COIN_UNITS.map((unitInfo, idx) => {
+          const count = counts[idx];
+          return (
+            <div key={unitInfo.unit} style={{...coinPileStyles.coinGroup, ...(count === 0 ? coinPileStyles.coinGroupEmpty : {})}}>
+              <CoinIcon unitInfo={unitInfo} animKey={`${unitInfo.unit}-${count}`} />
+              <span style={coinPileStyles.coinCount}>×{count}</span>
+            </div>
+          );
+        })}
+      </div>
+      {sparkles.map((s) => (
+        <span key={s.id} className="sparkle-piece" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+          {s.emoji}
+        </span>
+      ))}
+    </div>
+  );
+}
+const coinPileStyles = {
+  wrap: { position: "relative" },
+  row: { display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: "6px 10px", padding: "4px 0" },
+  coinGroup: { display: "flex", alignItems: "center", gap: "4px" },
+  coinGroupEmpty: { opacity: 0.35 },
+  coinCount: { fontSize: "13px", fontWeight: 800, color: "#5a4530" },
+};
+
+// ---- 人アイコン（×÷で人数を入れるときに表示） ----
+function PeopleIcons({ count }) {
+  const maxShow = 10;
+  if (!count) {
+    return <div style={peopleStyles.placeholder}>すうじを おすと 👤が ふえるよ</div>;
+  }
+  const showCount = Math.min(count, maxShow);
+  return (
+    <div style={peopleStyles.row}>
+      {Array.from({ length: showCount }, (_, i) => (
+        <span key={i} className="anim-coin-in" style={peopleStyles.icon}>👤</span>
+      ))}
+      {count > maxShow && <span style={peopleStyles.moreLabel}>ほか {count - maxShow}にん</span>}
+      <span style={peopleStyles.countLabel}>{count}にん</span>
+    </div>
+  );
+}
+const peopleStyles = {
+  placeholder: { fontSize: "12px", color: "#cbb892", fontWeight: 600, marginTop: "4px" },
+  row: { display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "3px", marginTop: "4px" },
+  icon: { fontSize: "22px" },
+  moreLabel: { fontSize: "11px", color: "#a8946b", fontWeight: 700 },
+  countLabel: { fontSize: "14px", fontWeight: 800, color: "#A8642A", marginLeft: "4px" },
+};
+
+// ---- 計算機キーのコンポーネント ----
+function CalcKey({ label, guide, onClick, popping, style, small, light }) {
+  return (
+    <button
+      onClick={onClick}
+      className={popping ? "anim-key-pop" : ""}
+      style={{ ...calcKeyStyles.base, ...style }}
+    >
+      <div style={{...(small ? calcKeyStyles.labelSmall : calcKeyStyles.label), ...(light ? { color: "#fff" } : {})}}>{label}</div>
+      {guide && <div style={{...calcKeyStyles.guide, ...(light ? { color: "rgba(255,255,255,0.85)" } : {})}}>{guide}</div>}
+    </button>
+  );
+}
+const calcKeyStyles = {
+  base: {
+    flex: 1,
+    minHeight: "40px",
+    height: "100%",
+    border: "2px solid #EFE1BD",
+    borderRadius: "16px",
+    background: "#FFFEF7",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "1px",
+    boxShadow: "0 3px 0 rgba(168,130,70,0.18), 0 4px 8px rgba(168,130,70,0.12)",
+    padding: "2px 2px",
+  },
+  label: { fontSize: "24px", fontWeight: 800, color: "#4a3f2c", lineHeight: 1 },
+  labelSmall: { fontSize: "18px", fontWeight: 800, color: "#4a3f2c", lineHeight: 1 },
+  guide: { fontSize: "9px", fontWeight: 700, color: "#9c8a64", textAlign: "center", lineHeight: 1.1 },
+};
+
+// ---- けいさんき本体 ----
+const CALC_OPS = { ADD: "+", SUB: "-", MUL: "×", DIV: "÷" };
+const CALC_OP_GUIDE = {
+  [CALC_OPS.ADD]: "たす（ふやす）",
+  [CALC_OPS.SUB]: "ひく（つかう）",
+  [CALC_OPS.MUL]: "かける（まとめてわたす）",
+  [CALC_OPS.DIV]: "わる（わける）",
+};
+
+function CalculatorTool({ onBack }) {
+  const [display, setDisplay] = useState("0");
+  const [storedValue, setStoredValue] = useState(null);
+  const [pendingOp, setPendingOp] = useState(null);
+  const [justEvaluated, setJustEvaluated] = useState(false);
+  const [poppingKey, setPoppingKey] = useState(null);
+  const [mergeAnimUnit, setMergeAnimUnit] = useState(null);
+  const [sparkles, setSparkles] = useState([]);
+  const [shake, setShake] = useState(false);
+  const [lastFormula, setLastFormula] = useState(null); // { a, op, b, result, people }
+  const [peopleCount, setPeopleCount] = useState(null); // ×÷のときに人数を入れるモード
+  const sparkleIdRef = useRef(0);
+  const audioUnlockedRef = useRef(false);
+
+  const isPeopleMode = pendingOp === CALC_OPS.MUL || pendingOp === CALC_OPS.DIV;
+
+  const currentAmount = useMemo(() => {
+    const n = parseFloat(display);
+    return Number.isFinite(n) ? n : 0;
+  }, [display]);
+
+  const coinCounts = useMemo(() => breakdownToCoins(currentAmount), [currentAmount]);
+
+  const unlockAudio = () => {
+    if (!audioUnlockedRef.current) {
+      const ctx = getCalcAudioCtx();
+      if (ctx && ctx.state === "suspended") ctx.resume();
+      audioUnlockedRef.current = true;
+    }
+  };
+
+  const popKey = (key) => {
+    setPoppingKey(key);
+    setTimeout(() => setPoppingKey(null), 220);
+  };
+
+  const handleDigit = (digit) => {
+    unlockAudio();
+    popKey(`d-${digit}`);
+
+    if (isPeopleMode) {
+      calcPlayPon(620);
+      setPeopleCount((prev) => {
+        const prevStr = prev === null ? "" : String(prev);
+        if (prevStr.length >= 2) return prev; // 人数は99人まで
+        const nextStr = prevStr + String(digit);
+        const next = parseInt(nextStr, 10);
+        return next > 0 ? next : null;
+      });
+      return;
+    }
+
+    calcPlayPon(720);
+    setDisplay((prev) => {
+      if (justEvaluated || prev === "0") return String(digit);
+      if (prev.replace("-", "").length >= 9) return prev;
+      return prev + String(digit);
+    });
+    setJustEvaluated(false);
+  };
+
+  const handleClear = () => {
+    unlockAudio();
+    calcPlayPon(420);
+    popKey("clear");
+    setDisplay("0");
+    setStoredValue(null);
+    setPendingOp(null);
+    setJustEvaluated(false);
+    setPeopleCount(null);
+  };
+
+  const computeResult = (a, b, op, people) => {
+    switch (op) {
+      case CALC_OPS.ADD: return a + b;
+      case CALC_OPS.SUB: return Math.max(0, a - b);
+      case CALC_OPS.MUL: return a * (people || 0);
+      case CALC_OPS.DIV: return !people ? a : Math.floor(a / people);
+      default: return b;
+    }
+  };
+
+  const handleOperator = (op) => {
+    unlockAudio();
+    calcPlayPon(560);
+    popKey(`op-${op}`);
+    const current = parseFloat(display) || 0;
+    if (storedValue === null) {
+      setStoredValue(current);
+    } else if (!justEvaluated) {
+      setStoredValue(computeResult(storedValue, current, pendingOp, peopleCount));
+    }
+    setPendingOp(op);
+    setJustEvaluated(true);
+    if (op === CALC_OPS.MUL || op === CALC_OPS.DIV) {
+      setPeopleCount(null);
+    }
+  };
+
+  const spawnSparkles = () => {
+    const emojis = ["✨", "⭐️", "🌟"];
+    const pieces = Array.from({ length: 6 }, () => ({
+      id: ++sparkleIdRef.current,
+      emoji: emojis[Math.floor(Math.random() * emojis.length)],
+      x: 10 + Math.random() * 80,
+      y: 10 + Math.random() * 60,
+    }));
+    setSparkles(pieces);
+    setTimeout(() => setSparkles([]), 700);
+  };
+
+  const handleEquals = () => {
+    unlockAudio();
+    if (storedValue === null || pendingOp === null) return;
+
+    const isPeopleOp = pendingOp === CALC_OPS.MUL || pendingOp === CALC_OPS.DIV;
+    if (isPeopleOp && !peopleCount) {
+      calcPlayPon(300);
+      popKey("equals");
+      return;
+    }
+
+    const current = parseFloat(display) || 0;
+    const result = computeResult(storedValue, current, pendingOp, peopleCount);
+
+    setLastFormula({
+      a: storedValue,
+      op: pendingOp,
+      b: isPeopleOp ? peopleCount : current,
+      result,
+      people: isPeopleOp ? peopleCount : null,
+    });
+
+    if (pendingOp === CALC_OPS.MUL) {
+      calcPlayMergeChime();
+      setMergeAnimUnit("merging");
+      spawnSparkles();
+      setTimeout(() => {
+        setDisplay(String(result));
+        setMergeAnimUnit(null);
+      }, 420);
+    } else {
+      calcPlayPon(880, 0.14);
+    }
+
+    setDisplay(String(result));
+    setStoredValue(null);
+    setPendingOp(null);
+    setJustEvaluated(true);
+    setPeopleCount(null);
+    popKey("equals");
+  };
+
+  const handleBackspace = () => {
+    unlockAudio();
+    calcPlayPon(500);
+    popKey("back");
+    setDisplay((prev) => {
+      if (justEvaluated || prev.length <= 1) return "0";
+      const next = prev.slice(0, -1);
+      return next === "" || next === "-" ? "0" : next;
+    });
+  };
+
+  return (
+    <div className="anim-calc-modal-in" style={calcModalStyles.screen}>
+      {/* ヘッダー：戻るボタン付き */}
+      <div style={calcModalStyles.header}>
+        <button onClick={onBack} style={calcModalStyles.backButton} aria-label="戻る">
+          ◁ <span style={calcModalStyles.backLabel}>もどる</span>
+        </button>
+        <h1 style={calcModalStyles.title}>おかねの けいさんき</h1>
+        <div style={calcModalStyles.headerSpacer} />
+      </div>
+
+      <div style={calcModalStyles.body}>
+        <div style={calcModalStyles.infoCard}>
+          <div style={calcModalStyles.amountRow}>
+            <span style={calcModalStyles.amountLabel}>いま もっている おかね</span>
+            <span style={calcModalStyles.bigAmount}>¥{currentAmount.toLocaleString()}</span>
+          </div>
+
+          <CoinPile counts={coinCounts} mergeAnim={mergeAnimUnit} sparkles={sparkles} />
+
+          <div style={calcModalStyles.formulaArea}>
+            {isPeopleMode ? (
+              <div style={calcModalStyles.peopleArea}>
+                <div style={calcModalStyles.peopleFormulaRow}>
+                  <span style={calcModalStyles.formulaActive}>¥{storedValue.toLocaleString()}</span>
+                  <span style={calcModalStyles.formulaOp}>{pendingOp}</span>
+                  <span style={calcModalStyles.formulaGuide}>（{CALC_OP_GUIDE[pendingOp]}） なんにん？</span>
+                </div>
+                <PeopleIcons count={peopleCount} />
+              </div>
+            ) : storedValue !== null && pendingOp ? (
+              <div style={calcModalStyles.formulaRow}>
+                <span style={calcModalStyles.formulaActive}>¥{storedValue.toLocaleString()}</span>
+                <span style={calcModalStyles.formulaOp}>{pendingOp}</span>
+                <span style={calcModalStyles.formulaGuide}>（{CALC_OP_GUIDE[pendingOp]}）</span>
+              </div>
+            ) : lastFormula ? (
+              <div style={calcModalStyles.formulaRow}>
+                {lastFormula.people ? (
+                  <span style={calcModalStyles.formulaPast}>
+                    ¥{lastFormula.a.toLocaleString()} {lastFormula.op} 👤{lastFormula.people}にん ＝ ¥{lastFormula.result.toLocaleString()}
+                    {lastFormula.op === CALC_OPS.DIV && <> （1にん ¥{lastFormula.result.toLocaleString()}）</>}
+                  </span>
+                ) : (
+                  <span style={calcModalStyles.formulaPast}>¥{lastFormula.a.toLocaleString()} {lastFormula.op} ¥{lastFormula.b.toLocaleString()} ＝ ¥{lastFormula.result.toLocaleString()}</span>
+                )}
+              </div>
+            ) : (
+              <div style={calcModalStyles.formulaEmpty}>けいさんの しきが ここに でるよ</div>
+            )}
+          </div>
+        </div>
+
+        <div className={shake ? "anim-calc-shake" : ""} style={calcModalStyles.keypad}>
+          <div style={calcModalStyles.keyRow}>
+            <CalcKey label="C" guide="けす" onClick={handleClear} popping={poppingKey === "clear"} style={calcModalStyles.keyClear} />
+            <CalcKey label="←" guide="もどす" onClick={handleBackspace} popping={poppingKey === "back"} style={calcModalStyles.keyClear} />
+            <CalcKey label="÷" guide="わる（わける）" onClick={() => handleOperator(CALC_OPS.DIV)} popping={poppingKey === `op-${CALC_OPS.DIV}`} style={{...calcModalStyles.keyOp, ...(pendingOp === CALC_OPS.DIV ? calcModalStyles.keySelected : {})}} small />
+          </div>
+          <div style={calcModalStyles.keyRow}>
+            <CalcKey label="7" onClick={() => handleDigit(7)} popping={poppingKey === "d-7"} style={calcModalStyles.keyNum} />
+            <CalcKey label="8" onClick={() => handleDigit(8)} popping={poppingKey === "d-8"} style={calcModalStyles.keyNum} />
+            <CalcKey label="9" onClick={() => handleDigit(9)} popping={poppingKey === "d-9"} style={calcModalStyles.keyNum} />
+            <CalcKey label="×" guide="かける（まとめてわたす）" onClick={() => handleOperator(CALC_OPS.MUL)} popping={poppingKey === `op-${CALC_OPS.MUL}`} style={{...calcModalStyles.keyMagic, ...(pendingOp === CALC_OPS.MUL ? calcModalStyles.keySelected : {})}} small />
+          </div>
+          <div style={calcModalStyles.keyRow}>
+            <CalcKey label="4" onClick={() => handleDigit(4)} popping={poppingKey === "d-4"} style={calcModalStyles.keyNum} />
+            <CalcKey label="5" onClick={() => handleDigit(5)} popping={poppingKey === "d-5"} style={calcModalStyles.keyNum} />
+            <CalcKey label="6" onClick={() => handleDigit(6)} popping={poppingKey === "d-6"} style={calcModalStyles.keyNum} />
+            <CalcKey label="－" guide="ひく（つかう）" onClick={() => handleOperator(CALC_OPS.SUB)} popping={poppingKey === `op-${CALC_OPS.SUB}`} style={calcModalStyles.keyOp} small />
+          </div>
+          <div style={calcModalStyles.keyRow}>
+            <CalcKey label="1" onClick={() => handleDigit(1)} popping={poppingKey === "d-1"} style={calcModalStyles.keyNum} />
+            <CalcKey label="2" onClick={() => handleDigit(2)} popping={poppingKey === "d-2"} style={calcModalStyles.keyNum} />
+            <CalcKey label="3" onClick={() => handleDigit(3)} popping={poppingKey === "d-3"} style={calcModalStyles.keyNum} />
+            <CalcKey label="＋" guide="たす（ふやす）" onClick={() => handleOperator(CALC_OPS.ADD)} popping={poppingKey === `op-${CALC_OPS.ADD}`} style={calcModalStyles.keyOp} small />
+          </div>
+          <div style={calcModalStyles.keyRow}>
+            <CalcKey label="0" onClick={() => handleDigit(0)} popping={poppingKey === "d-0"} style={{...calcModalStyles.keyNum, flex: 2}} />
+            <CalcKey label="＝" guide="けいさん する" onClick={handleEquals} popping={poppingKey === "equals"} style={calcModalStyles.keyEquals} light />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+const calcModalStyles = {
+  screen: { display: "flex", flexDirection: "column", height: "100%", background: "#FFFBF0" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 12px 10px", borderBottom: "2px dashed #E2D2A8", flexShrink: 0 },
+  backButton: { minHeight: "48px", minWidth: "70px", display: "flex", alignItems: "center", gap: "4px", border: "none", background: "transparent", fontSize: "19px", color: "#7a5c3e", fontWeight: 700, padding: "0 8px" },
+  backLabel: { fontSize: "13px" },
+  title: { margin: 0, fontSize: "17px", fontWeight: 800, color: "#7a4a1e", letterSpacing: "0.5px" },
+  headerSpacer: { width: "70px" },
+  body: { flex: 1, display: "flex", flexDirection: "column", padding: "10px 12px", minHeight: 0, gap: "8px" },
+
+  infoCard: {
+    background: "linear-gradient(160deg, #FBEFD2, #F5E3B8)",
+    border: "3px dashed #D9B66B",
+    borderRadius: "22px",
+    padding: "10px 14px",
+    boxShadow: "0 6px 14px rgba(180, 140, 60, 0.16)",
+    flexShrink: 0,
+  },
+  amountRow: { display: "flex", alignItems: "baseline", justifyContent: "center", gap: "8px", marginBottom: "2px" },
+  amountLabel: { fontSize: "12px", fontWeight: 700, color: "#7a5c3e" },
+  bigAmount: { fontSize: "32px", fontWeight: 800, color: "#A8642A", letterSpacing: "0.5px" },
+
+  formulaArea: {
+    marginTop: "4px",
+    paddingTop: "6px",
+    borderTop: "2px dashed rgba(217,166,70,0.4)",
+    textAlign: "center",
+    minHeight: "26px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  peopleArea: { display: "flex", flexDirection: "column", alignItems: "center", width: "100%" },
+  peopleFormulaRow: { display: "flex", alignItems: "baseline", justifyContent: "center", gap: "6px", flexWrap: "wrap" },
+  formulaRow: { display: "flex", alignItems: "baseline", justifyContent: "center", gap: "6px", flexWrap: "wrap" },
+  formulaActive: { fontSize: "15px", fontWeight: 800, color: "#5a4530" },
+  formulaPast: { fontSize: "13.5px", fontWeight: 700, color: "#a8946b" },
+  formulaOp: { fontSize: "16px", fontWeight: 800, color: "#A8642A" },
+  formulaGuide: { fontSize: "10.5px", color: "#a8946b", fontWeight: 600 },
+  formulaEmpty: { fontSize: "11.5px", color: "#cbb892", fontWeight: 600 },
+
+  keypad: { flex: 1, display: "flex", flexDirection: "column", gap: "7px", minHeight: 0 },
+  keyRow: { display: "flex", gap: "7px", flex: 1 },
+  keyNum: { background: "#FFFEF7" },
+  keyOp: { background: "#FBEFD2", border: "2px solid #E0C896" },
+  keyMagic: {
+    background: "linear-gradient(160deg, #FFE9B8, #FFD873)",
+    border: "2px solid #D9A441",
+    boxShadow: "0 3px 0 rgba(217,164,65,0.3), 0 4px 10px rgba(217,164,65,0.3)",
+  },
+  keyClear: { background: "#FCF1F1", border: "2px solid #ECD3CE" },
+  keySelected: { border: "3px solid #7a4a1e", boxShadow: "0 0 0 2px rgba(122,74,30,0.25), 0 3px 0 rgba(217,164,65,0.3)" },
+  keyEquals: {
+    flex: 1,
+    background: "linear-gradient(160deg, #BD7A3E, #A8642A)",
+    border: "none",
+    boxShadow: "0 4px 0 #7a4a1e, 0 6px 10px rgba(168,100,42,0.35)",
+  },
+};
+
+// ==========================================================
+// 16. 下部タブバー
+// ==========================================================
+function TabBar() {
+  const { tab, setTab } = useTabs();
+  return (
+    <div style={tabBarStyles.wrap}>
+      <button
+        onClick={() => setTab(TABS.JOBS)}
+        style={{...tabBarStyles.tabButton, ...(tab === TABS.JOBS ? tabBarStyles.tabButtonActive : {})}}
+      >
+        <div style={tabBarStyles.tabIcon}>📒</div>
+        <div style={tabBarStyles.tabLabel}>おしごとちょう</div>
+      </button>
+      <button
+        onClick={() => setTab(TABS.DIARY)}
+        style={{...tabBarStyles.tabButton, ...(tab === TABS.DIARY ? tabBarStyles.tabButtonActive : {})}}
+      >
+        <div style={tabBarStyles.tabIcon}>📔</div>
+        <div style={tabBarStyles.tabLabel}>きょう なにした？</div>
+      </button>
+      <button
+        onClick={() => setTab(TABS.SETTINGS)}
+        style={{...tabBarStyles.tabButton, ...(tab === TABS.SETTINGS ? tabBarStyles.tabButtonActive : {})}}
+      >
+        <div style={tabBarStyles.tabIcon}>⚙️</div>
+        <div style={tabBarStyles.tabLabel}>せってい</div>
+      </button>
+    </div>
+  );
+}
+const tabBarStyles = {
+  wrap: {
+    display: "flex",
+    flexShrink: 0,
+    background: "#FFFEF7",
+    borderTop: "2px solid #EFE1BD",
+    boxShadow: "0 -4px 12px rgba(168,130,70,0.10)",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
+  },
+  tabButton: {
+    flex: 1,
+    minHeight: "64px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "2px",
+    border: "none",
+    background: "transparent",
+    color: "#bfae8a",
+  },
+  tabButtonActive: {
+    color: "#A8642A",
+  },
+  tabIcon: { fontSize: "22px" },
+  tabLabel: { fontSize: "11px", fontWeight: 800 },
+};
+
+// ==========================================================
+// 17. App 本体
+// ==========================================================
+function MainScreen() {
+  const { tab } = useTabs();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        {tab === TABS.JOBS && <JobsScreen />}
+        {tab === TABS.DIARY && <DiaryScreen />}
+        {tab === TABS.SETTINGS && <SettingsScreen />}
+      </div>
+      <TabBar />
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AppProvider>
+      <div style={{ width: "100%", height: "100vh", overflow: "hidden", position: "relative", fontFamily: "'Hiragino Maru Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif" }}>
+        <MainScreen />
+      </div>
+    </AppProvider>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
